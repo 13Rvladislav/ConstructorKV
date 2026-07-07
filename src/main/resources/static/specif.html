@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 Дерево спецификаций</title>
+    <style>
+        /* ===== БАЗОВЫЕ СТИЛИ ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #4fc3f7;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ===== ПАРАМЕТРЫ ===== */
+        .params {
+            background: #e3f2fd;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+        .params .label { font-weight: bold; color: #0d47a1; }
+        .params .value { color: #333; }
+
+        /* ===== СТАТИСТИКА ===== */
+        .stats {
+            background: #e8eaf6;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+        .stats .count { font-weight: bold; color: #1a237e; }
+
+        /* ===== КНОПКИ ===== */
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            padding: 6px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.3s;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-back { background: #78909c; color: white; }
+        .btn-expand { background: #4fc3f7; color: white; }
+        .btn-collapse { background: #ffb74d; color: white; }
+        .btn-refresh { background: #66bb6a; color: white; }
+
+        /* ===== ЗАГРУЗКА И ОШИБКИ ===== */
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        /* ===== ДЕРЕВО ===== */
+        .tree ul {
+            list-style: none;
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+        .tree li {
+            padding: 2px 0;
+            list-style: none;
+        }
+
+        /* ===== УЗЕЛ СПЕЦИФИКАЦИИ ===== */
+        .specif-node {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #f3e5f5;
+            border-left: 4px solid #7b1fa2;
+            margin: 2px 0;
+            transition: background 0.2s;
+            flex-wrap: wrap;
+            user-select: none;
+        }
+        .specif-node:hover { background: #e1bee7; }
+        .specif-node .badge {
+            background: #7b1fa2;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .specif-node .obozn { font-weight: bold; color: #4a148c; font-size: 14px; }
+        .specif-node .naim { color: #666; font-size: 13px; margin-left: 6px; }
+        .specif-node .meta { color: #999; font-size: 11px; margin-left: 6px; }
+        .specif-node .link-badge {
+            background: #ff6f00;
+            color: white;
+            font-size: 9px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            margin-left: 4px;
+        }
+        .level-0 { border-left-color: #7b1fa2; }
+        .level-1 { border-left-color: #9c27b0; }
+        .level-2 { border-left-color: #ab47bc; }
+        .level-3 { border-left-color: #ba68c8; }
+        .level-4 { border-left-color: #ce93d8; }
+        .level-5 { border-left-color: #e1bee7; }
+
+        .no-children {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            border-left: 4px solid #e0e0e0;
+            margin: 2px 0;
+            cursor: default;
+            opacity: 0.7;
+        }
+        .no-children .badge {
+            background: #e0e0e0;
+            color: #666;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .arrow {
+            color: #78909c;
+            font-size: 12px;
+            width: 16px;
+            text-align: center;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .arrow.expanded {
+            transform: rotate(90deg);
+        }
+        .children {
+            display: block;
+        }
+        .children.collapsed {
+            display: none;
+        }
+
+        /* ===== СЛУЖЕБНЫЕ ЗАПИСКИ ===== */
+        .slzap-panel {
+            margin-top: 20px;
+            border-top: 2px solid #e0e0e0;
+            padding-top: 15px;
+            display: none;
+        }
+        .slzap-panel h3 {
+            color: #1a237e;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slzap-panel h3 .count {
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+        }
+        .slzap-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .slzap-controls select {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+        .slzap-controls select:focus {
+            border-color: #4fc3f7;
+            outline: none;
+        }
+        .slzap-controls select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .slzap-info {
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            display: none;
+            border-left: 4px solid #4fc3f7;
+        }
+        .slzap-info p {
+            margin: 4px 0;
+            font-size: 14px;
+        }
+        .slzap-info .label { font-weight: bold; color: #333; }
+        .slzap-info .value { color: #555; }
+
+        .slzap-empty {
+            padding: 15px;
+            background: #fff8e1;
+            border-radius: 5px;
+            border-left: 4px solid #ffb74d;
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* ===== КОМПЛЕКТОВОЧНЫЕ ВЕДОМОСТИ ===== */
+        .kv-panel {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #e0e0e0;
+            display: none;
+        }
+        .kv-panel h3 {
+            color: #1a237e;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .kv-panel h3 .count {
+            font-size: 14px;
+            color: #666;
+            font-weight: normal;
+        }
+        .btn-slzap {
+            background: #4fc3f7;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+        }
+        .btn-slzap:hover { opacity: 0.8; }
+        .btn-slzap:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-slzap-kv {
+            background: #66bb6a;
+        }
+        .btn-slzap-kv:hover { opacity: 0.8; }
+
+        .kv-info {
+            padding: 12px 15px;
+            background: #e8f5e9;
+            border-radius: 5px;
+            display: none;
+            border-left: 4px solid #66bb6a;
+        }
+        .kv-info p {
+            margin: 4px 0;
+            font-size: 14px;
+        }
+        .kv-info .label { font-weight: bold; color: #333; }
+        .kv-info .value { color: #555; }
+
+        /* ===== МОДАЛЬНОЕ ОКНО ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal h2 {
+            color: #1a237e;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .modal .assembly-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .modal .assembly-item:hover:not(.disabled) {
+            border-color: #4fc3f7;
+            background: #e3f2fd;
+        }
+        .modal .assembly-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f5f5f5;
+        }
+        .modal .assembly-item.disabled:hover {
+            border-color: #e0e0e0;
+            background: #f5f5f5;
+        }
+        .modal .assembly-item .obozn {
+            font-weight: bold;
+            color: #1a237e;
+            min-width: 150px;
+        }
+        .modal .assembly-item .izd-info {
+            color: #666;
+            font-size: 13px;
+        }
+        .modal .assembly-item .badge {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 10px;
+            background: #ffeb3b;
+            color: #333;
+            white-space: nowrap;
+        }
+        .modal .assembly-item .badge.has-kv {
+            background: #4caf50;
+            color: white;
+        }
+        .modal .assembly-item .badge.preview {
+            background: #4fc3f7;
+            color: white;
+        }
+        .modal .modal-close {
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: #78909c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            float: right;
+        }
+        .modal .modal-close:hover {
+            background: #607d8b;
+        }
+        .modal .loading-small {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        /* ===== ФУТЕР ===== */
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* ===== АДАПТИВНОСТЬ ===== */
+        @media (max-width: 768px) {
+            .specif-node { flex-wrap: wrap; }
+            .params { flex-direction: column; gap: 5px; }
+            .stats { flex-direction: column; gap: 5px; }
+            .slzap-controls { flex-direction: column; }
+            .slzap-controls select { width: 100%; }
+            .modal { padding: 15px; }
+            .modal .assembly-item { flex-direction: column; align-items: stretch; }
+            .modal .assembly-item .obozn { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📋 Дерево спецификаций</h1>
+
+    <!-- Параметры группы -->
+    <div class="params" id="paramsPanel">
+        <span><span class="label">Тема:</span> <span class="value" id="temaName">—</span></span>
+        <span><span class="label">Изделие:</span> <span class="value" id="izdelieName">—</span></span>
+        <span><span class="label">Группа:</span> <span class="value" id="groupeName">—</span></span>
+    </div>
+
+    <!-- Статистика -->
+    <div class="stats">
+        <span>📦 Узлов: <span class="count" id="totalCount">0</span></span>
+        <span>📁 Корневых: <span id="rootCount">0</span></span>
+        <span id="statusText" style="color: #ffb74d;">⏳ Загрузка...</span>
+    </div>
+
+    <!-- Кнопки управления -->
+    <div class="controls">
+        <button class="btn btn-back" onclick="goBack()">🔙 Назад к дереву</button>
+        <button class="btn btn-expand" onclick="expandAll()">📖 Развернуть всё</button>
+        <button class="btn btn-collapse" onclick="collapseAll()">📕 Свернуть всё</button>
+        <button class="btn btn-refresh" onclick="loadSpecifTree()">🔄 Обновить</button>
+    </div>
+
+    <!-- Ошибка -->
+    <div id="errorMsg" class="error"></div>
+
+    <!-- Загрузка -->
+    <div id="loading" class="loading">⏳ Загрузка дерева спецификаций...</div>
+
+    <!-- Дерево -->
+    <div id="treeContainer" class="tree" style="display:none;"></div>
+
+    <!-- ===== ПАНЕЛЬ СЛУЖЕБНЫХ ЗАПИСОК ===== -->
+    <div id="slzapPanel" class="slzap-panel">
+        <h3>
+            📋 Служебные записки
+            <span class="count" id="slzapCount">(0)</span>
+        </h3>
+
+        <div class="slzap-controls">
+            <select id="slzapCombo" disabled>
+                <option value="">— Выберите служебную записку —</option>
+            </select>
+        </div>
+
+        <div id="slzapInfo" class="slzap-info">
+            <p><span class="label">ID:</span> <span class="value" id="slzapId">—</span></p>
+            <p><span class="label">Обозначение:</span> <span class="value" id="slzapObozn">—</span></p>
+            <p><span class="label">Наименование:</span> <span class="value" id="slzapNaim">—</span></p>
+            <p><span class="label">Статус:</span> <span class="value" id="slzapStatus">—</span></p>
+            <p><span class="label">Согласование:</span> <span class="value" id="slzapAgreed">—</span></p>
+            <p><span class="label">Изделие:</span> <span class="value" id="slzapIzdelie">—</span></p>
+        </div>
+
+        <div id="slzapEmpty" class="slzap-empty" style="display:none;">
+            ⚠️ Для выбранной спецификации нет служебных записок.
+            <br>Кликните на узел в дереве, чтобы загрузить связанные записки.
+        </div>
+    </div>
+
+    <!-- ===== ПАНЕЛЬ КОМПЛЕКТОВОЧНЫХ ВЕДОМОСТЕЙ ===== -->
+    <div id="kvPanel" class="kv-panel">
+        <h3>
+            📦 Комплектовочные ведомости
+            <span class="count" id="kvCount">(0)</span>
+        </h3>
+
+        <div class="slzap-controls">
+            <select id="kvCombo" disabled>
+                <option value="">— Выберите КВ —</option>
+            </select>
+            <button class="btn-slzap btn-slzap-kv" id="btnFormKV" disabled onclick="openAssemblyModal()">
+                📄 Сформировать КВ
+            </button>
+        </div>
+
+        <div id="kvInfo" class="kv-info">
+            <p><span class="label">ID:</span> <span class="value" id="kvId">—</span></p>
+            <p><span class="label">Обозначение:</span> <span class="value" id="kvDesign">—</span></p>
+            <p><span class="label">Статус:</span> <span class="value" id="kvStatus">—</span></p>
+            <p><span class="label">Дата создания:</span> <span class="value" id="kvDate">—</span></p>
+            <p><span class="label">Сборки:</span> <span class="value" id="kvSborki">—</span></p>
+        </div>
+
+        <div id="kvEmpty" class="slzap-empty" style="display:none;">
+            ⚠️ Для выбранной служебной записки нет КВ.
+            <br>Нажмите "Сформировать КВ", чтобы создать новую.
+        </div>
+    </div>
+
+    <div class="footer">Конструктор КВ API &copy; 2026</div>
+</div>
+
+<!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ ВЫБОРА СБОРКИ ===== -->
+<div id="assemblyModal" class="modal-overlay">
+    <div class="modal">
+        <h2>📐 Выберите сборку для КВ</h2>
+        <p style="color:#666; margin-bottom: 15px;">
+            Служебная записка: <strong id="modalSlZapName">—</strong>
+        </p>
+        <div id="modalAssemblyList">
+            <div class="loading-small">⏳ Загрузка списка сборок...</div>
+        </div>
+        <button class="modal-close" onclick="closeAssemblyModal()">❌ Отмена</button>
+    </div>
+</div>
+
+<script>
+    // ========================================================================
+    // ПАРАМЕТРЫ ИЗ URL
+    // ========================================================================
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const temaId = urlParams.get('temaId');
+    const izdelieId = urlParams.get('izdelieId');
+    const groupeId = urlParams.get('groupeId');
+
+    document.getElementById('temaName').textContent = temaId || '—';
+    document.getElementById('izdelieName').textContent = izdelieId || '—';
+    document.getElementById('groupeName').textContent = groupeId || '—';
+
+    // ========================================================================
+    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+    // ========================================================================
+
+    let currentSpecifId = null;
+    let currentSlZapId = null;
+    let slZapList = [];
+    let kvList = [];
+    let selectedKvId = null;
+    let assemblyList = [];
+
+    // ========================================================================
+    // ЗАГРУЗКА ДЕРЕВА СПЕЦИФИКАЦИЙ
+    // ========================================================================
+
+    async function loadSpecifTree() {
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('treeContainer');
+        const error = document.getElementById('errorMsg');
+        const status = document.getElementById('statusText');
+
+        if (!temaId || !izdelieId || !groupeId) {
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: не указаны параметры temaId, izdelieId, groupeId';
+            loading.style.display = 'none';
+            return;
+        }
+
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        error.style.display = 'none';
+        status.textContent = '⏳ Загрузка...';
+        status.style.color = '#ffb74d';
+
+        try {
+            const url = `/api/specif/tree?temaId=${temaId}&izdelieId=${izdelieId}&groupeId=${groupeId}`;
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            const data = result.data;
+            document.getElementById('totalCount').textContent = data.totalNodes || 0;
+            document.getElementById('rootCount').textContent = data.roots?.length || 0;
+
+            if (data.groupInfo) {
+                document.getElementById('temaName').textContent = data.groupInfo.temaName || temaId;
+                document.getElementById('izdelieName').textContent = data.groupInfo.izdelieName || izdelieId;
+                document.getElementById('groupeName').textContent = data.groupInfo.groupeName || groupeId;
+            }
+
+            renderTree(data.roots);
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            status.textContent = '✅ Загружено (' + (data.totalNodes || 0) + ' узлов)';
+            status.style.color = '#66bb6a';
+
+        } catch (err) {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: ' + err.message;
+            status.textContent = '❌ Ошибка';
+            status.style.color = '#ef5350';
+            console.error(err);
+        }
+    }
+
+    // ========================================================================
+    // РЕНДЕРИНГ ДЕРЕВА
+    // ========================================================================
+
+    function renderTree(roots) {
+        const container = document.getElementById('treeContainer');
+        if (!roots || roots.length === 0) {
+            container.innerHTML = '<p style="color:#999;text-align:center;">Нет спецификаций</p>';
+            return;
+        }
+        container.innerHTML = buildTreeHTML(roots, 0);
+
+        setTimeout(function() {
+            document.querySelectorAll('.tree-root > li > .children').forEach(function(el) {
+                el.classList.remove('collapsed');
+                const arrow = el.parentElement.querySelector('.specif-node .arrow');
+                if (arrow) arrow.classList.add('expanded');
+            });
+        }, 100);
+    }
+
+    function buildTreeHTML(nodes, level) {
+        if (!nodes || nodes.length === 0) return '';
+
+        let html = '<ul class="tree-level-' + level + '">';
+        for (const node of nodes) {
+            const hasChildren = node.children && node.children.length > 0;
+            const levelClass = 'level-' + (node.level || 0);
+            const isLinked = node.isLinked || false;
+            const nodeId = 'node-' + node.id + '-' + Math.random().toString(36).substr(2, 5);
+
+            html += '<li>';
+            html += '<div class="specif-node ' + levelClass + '" ';
+            html += 'data-node-id="' + nodeId + '" ';
+            html += 'data-has-children="' + hasChildren + '" ';
+            html += 'data-specif-id="' + node.id + '" ';
+            html += 'onclick="onNodeClick(this)" ';
+            html += 'style="cursor: ' + (hasChildren ? 'pointer' : 'default') + ';">';
+
+            if (hasChildren) {
+                html += '<span class="arrow expanded">▶</span>';
+            } else {
+                html += '<span class="arrow" style="color:#e0e0e0;">•</span>';
+            }
+
+            html += '<span class="badge">' + (isLinked ? '🔗' : 'СПЕЦ') + '</span>';
+            html += '<span class="obozn">' + (node.obozn || 'Без обозн') + '</span>';
+            html += '<span class="naim">' + (node.naim || '') + '</span>';
+            if (node.massa) html += '<span class="meta">⚖️ ' + node.massa + ' кг</span>';
+            if (node.letters) html += '<span class="meta">📌 ' + node.letters + '</span>';
+            if (isLinked && node.linkInfo) {
+                html += '<span class="link-badge">' + node.linkInfo + '</span>';
+            }
+            html += '<span class="meta">(ID: ' + node.id + ')</span>';
+            html += '</div>';
+
+            if (hasChildren) {
+                html += '<ul class="children">';
+                html += buildTreeHTML(node.children, level + 1);
+                html += '</ul>';
+            } else {
+                html += '<ul class="children" style="display:none;">';
+                html += '<li>';
+                html += '<div class="no-children">';
+                html += '<span class="badge">📄</span>';
+                html += '<span class="naim">Нет вложенных спецификаций</span>';
+                html += '</div>';
+                html += '</li>';
+                html += '</ul>';
+            }
+
+            html += '</li>';
+        }
+        html += '</ul>';
+        return html;
+    }
+
+    // ========================================================================
+    // ОБРАБОТЧИК КЛИКА ПО УЗЛУ
+    // ========================================================================
+
+    function onNodeClick(element) {
+        const hasChildren = element.dataset.hasChildren === 'true';
+        if (hasChildren) {
+            const childrenList = element.parentElement.querySelector('ul.children');
+            if (childrenList) {
+                const arrow = element.querySelector('.arrow');
+                if (childrenList.classList.contains('collapsed')) {
+                    childrenList.classList.remove('collapsed');
+                    if (arrow) arrow.classList.add('expanded');
+                } else {
+                    childrenList.classList.add('collapsed');
+                    if (arrow) arrow.classList.remove('expanded');
+                }
+            }
+        }
+
+        const specifId = parseInt(element.dataset.specifId);
+        if (specifId && !isNaN(specifId)) {
+            loadSlZapForSpecif(specifId);
+        }
+    }
+
+    // ========================================================================
+    // СЛУЖЕБНЫЕ ЗАПИСКИ
+    // ========================================================================
+
+    async function loadSlZapForSpecif(specifId) {
+        if (!specifId) {
+            document.getElementById('slzapPanel').style.display = 'none';
+            return;
+        }
+
+        currentSpecifId = specifId;
+        const panel = document.getElementById('slzapPanel');
+        const combo = document.getElementById('slzapCombo');
+        const info = document.getElementById('slzapInfo');
+        const empty = document.getElementById('slzapEmpty');
+        const count = document.getElementById('slzapCount');
+        const kvPanel = document.getElementById('kvPanel');
+
+        panel.style.display = 'block';
+        kvPanel.style.display = 'none';
+        info.style.display = 'none';
+        empty.style.display = 'none';
+        combo.disabled = true;
+        combo.innerHTML = '<option value="">⏳ Загрузка...</option>';
+
+        try {
+            const response = await fetch('/api/slzap/by-specif/' + specifId);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            slZapList = result.data || [];
+            count.textContent = '(' + slZapList.length + ')';
+
+            combo.innerHTML = '<option value="">— Выберите служебную записку —</option>';
+
+            if (slZapList.length === 0) {
+                empty.style.display = 'block';
+                combo.disabled = true;
+                return;
+            }
+
+            for (const item of slZapList) {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.displayName || (item.obozn + ' — ' + item.naimSlZap);
+                option.dataset.izdelieName = item.izdelieName || '';
+                option.dataset.izdelieId = item.izdelieId || '';
+                option.dataset.izdelSlZapId = item.izdelSlZapId || '';
+                option.dataset.isAgreed = item.isAgreed || false;
+                combo.appendChild(option);
+            }
+
+            combo.disabled = false;
+
+            if (slZapList.length > 0) {
+                combo.value = slZapList[0].id;
+                showSlZapInfo(slZapList[0]);
+                loadKvForSlZap(slZapList[0].id);
+            }
+
+        } catch (err) {
+            combo.innerHTML = '<option value="">❌ Ошибка загрузки</option>';
+            combo.disabled = true;
+            console.error('Ошибка загрузки служебных записок:', err);
+        }
+    }
+
+    function showSlZapInfo(item) {
+        if (!item) return;
+
+        document.getElementById('slzapId').textContent = item.id || '—';
+        document.getElementById('slzapObozn').textContent = item.obozn || '—';
+        document.getElementById('slzapNaim').textContent = item.naimSlZap || '—';
+        document.getElementById('slzapStatus').textContent = item.status || '—';
+        document.getElementById('slzapAgreed').textContent = item.agreedStatus || '—';
+        document.getElementById('slzapIzdelie').textContent = item.izdelieName || 'Не указано';
+
+        document.getElementById('slzapInfo').style.display = 'block';
+        document.getElementById('slzapEmpty').style.display = 'none';
+
+        currentSlZapId = item.id;
+        document.getElementById('btnFormKV').disabled = false;
+    }
+
+    // ========================================================================
+    // КОМПЛЕКТОВОЧНЫЕ ВЕДОМОСТИ
+    // ========================================================================
+
+    async function loadKvForSlZap(slZapiskaId) {
+        if (!slZapiskaId) {
+            document.getElementById('kvPanel').style.display = 'none';
+            return;
+        }
+
+        currentSlZapId = slZapiskaId;
+        const panel = document.getElementById('kvPanel');
+        const combo = document.getElementById('kvCombo');
+        const btnFormKV = document.getElementById('btnFormKV');
+        const count = document.getElementById('kvCount');
+
+        panel.style.display = 'block';
+        combo.disabled = true;
+        btnFormKV.disabled = true;
+        combo.innerHTML = '<option value="">⏳ Загрузка...</option>';
+
+        try {
+            const response = await fetch('/api/kv/by-slzap/' + slZapiskaId);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            kvList = result.data || [];
+            count.textContent = '(' + kvList.length + ')';
+
+            combo.innerHTML = '<option value="">— Выберите КВ —</option>';
+
+            if (kvList.length === 0) {
+                combo.innerHTML += '<option value="" disabled>Нет КВ</option>';
+                combo.disabled = false;
+                btnFormKV.disabled = false;
+                document.getElementById('kvInfo').style.display = 'none';
+                document.getElementById('kvEmpty').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('kvEmpty').style.display = 'none';
+
+            for (const kv of kvList) {
+                const option = document.createElement('option');
+                option.value = kv.id;
+                option.textContent = kv.displayName || (kv.design + ' — ' + kv.dateCreate);
+                combo.appendChild(option);
+            }
+
+            combo.disabled = false;
+            btnFormKV.disabled = false;
+
+            if (kvList.length > 0) {
+                combo.value = kvList[0].id;
+                showKvInfo(kvList[0]);
+            }
+
+        } catch (err) {
+            combo.innerHTML = '<option value="">❌ Ошибка загрузки</option>';
+            combo.disabled = true;
+            console.error('Ошибка загрузки КВ:', err);
+        }
+    }
+
+    function showKvInfo(kv) {
+        if (!kv) return;
+
+        document.getElementById('kvId').textContent = kv.id || '—';
+        document.getElementById('kvDesign').textContent = kv.design || '—';
+        document.getElementById('kvStatus').textContent = kv.status || '—';
+        document.getElementById('kvDate').textContent = kv.dateCreate || '—';
+        document.getElementById('kvSborki').textContent = kv.sborkiSz || '—';
+
+        document.getElementById('kvInfo').style.display = 'block';
+        selectedKvId = kv.id;
+    }
+
+    // ========================================================================
+    // МОДАЛЬНОЕ ОКНО: ВЫБОР СБОРКИ
+    // ========================================================================
+
+    async function openAssemblyModal() {
+        if (!currentSlZapId) {
+            alert('Пожалуйста, выберите служебную записку');
+            return;
+        }
+
+        // Проверяем согласование
+        const combo = document.getElementById('slzapCombo');
+        const selectedOption = combo.options[combo.selectedIndex];
+        const isAgreed = selectedOption ? selectedOption.dataset.isAgreed === 'true' : false;
+
+        if (!isAgreed) {
+            alert('❌ Служебная записка не согласована!\n' +
+                'КВ можно формировать только для согласованных СЗ.');
+            return;
+        }
+
+        // Показываем модальное окно
+        const modal = document.getElementById('assemblyModal');
+        modal.classList.add('active');
+
+        const slZapName = selectedOption ? selectedOption.text : 'ID: ' + currentSlZapId;
+        document.getElementById('modalSlZapName').textContent = slZapName;
+
+        // Загружаем список сборок
+        const listContainer = document.getElementById('modalAssemblyList');
+        listContainer.innerHTML = '<div class="loading-small">⏳ Загрузка списка сборок...</div>';
+
+        try {
+            const response = await fetch('/api/slzap/' + currentSlZapId + '/assemblies');
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            assemblyList = result.data || [];
+
+            if (assemblyList.length === 0) {
+                listContainer.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">Нет доступных сборок для формирования КВ</p>';
+                return;
+            }
+
+            let html = '';
+            let hasAvailable = false;
+
+            for (const item of assemblyList) {
+                const disabled = item.hasKv || false;
+                if (!disabled) hasAvailable = true;
+
+                html += `
+                    <div class="assembly-item ${disabled ? 'disabled' : ''}"
+                         onclick="${disabled ? '' : 'selectAssembly(' + item.specifId + ')'}"
+                         data-specif-id="${item.specifId}">
+                        <span class="obozn">${item.obozn}</span>
+                        ${item.izdelieName ? '<span class="izd-info">[Изделие: ' + item.izdelieName + ']</span>' : ''}
+                        ${disabled ? '<span class="badge has-kv">✅ КВ уже есть</span>' : '<span class="badge preview">📄 Предпросмотр</span>'}
+                    </div>
+                `;
+            }
+
+            if (!hasAvailable) {
+                html += '<p style="color:#ef5350;text-align:center;padding:15px;">⚠️ На все сборки уже есть КВ</p>';
+            }
+
+            listContainer.innerHTML = html;
+
+        } catch (err) {
+            listContainer.innerHTML = '<p style="color:#c62828;text-align:center;padding:20px;">❌ Ошибка загрузки: ' + err.message + '</p>';
+            console.error(err);
+        }
+    }
+
+    function closeAssemblyModal() {
+        document.getElementById('assemblyModal').classList.remove('active');
+    }
+
+    /**
+     * ВЫБОР СБОРКИ — ОТКРЫТИЕ ПРЕДПРОСМОТРА
+     */
+    function selectAssembly(specifId) {
+        // Находим выбранную сборку в списке
+        const item = assemblyList.find(a => a.specifId === specifId);
+        if (!item) return;
+
+        // Проверяем, что на сборку ещё нет КВ
+        if (item.hasKv) {
+            alert('На эту сборку уже есть КВ');
+            return;
+        }
+
+        // Закрываем модальное окно
+        closeAssemblyModal();
+
+        // Открываем окно предпросмотра
+        const slZapId = currentSlZapId;
+        const previewUrl = `/preview.html?specifId=${specifId}&slZapId=${slZapId}`;
+
+        const previewWindow = window.open(
+            previewUrl,
+            '_blank',
+            'width=1100,height=800,scrollbars=yes,resizable=yes'
+        );
+
+        if (!previewWindow) {
+            alert('⚠️ Пожалуйста, разрешите всплывающие окна для этого сайта');
+        }
+    }
+
+    // ========================================================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ
+    // ========================================================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Выбор служебной записки
+        const slzapCombo = document.getElementById('slzapCombo');
+        if (slzapCombo) {
+            slzapCombo.addEventListener('change', function() {
+                const selectedId = parseInt(this.value);
+                if (selectedId) {
+                    const item = slZapList.find(s => s.id === selectedId);
+                    if (item) {
+                        showSlZapInfo(item);
+                        loadKvForSlZap(selectedId);
+                    }
+                } else {
+                    document.getElementById('slzapInfo').style.display = 'none';
+                    document.getElementById('kvPanel').style.display = 'none';
+                    document.getElementById('btnFormKV').disabled = true;
+                }
+            });
+        }
+
+        // Выбор КВ
+        const kvCombo = document.getElementById('kvCombo');
+        if (kvCombo) {
+            kvCombo.addEventListener('change', function() {
+                const selectedId = parseInt(this.value);
+                if (selectedId) {
+                    const item = kvList.find(k => k.id === selectedId);
+                    if (item) {
+                        showKvInfo(item);
+                    }
+                } else {
+                    document.getElementById('kvInfo').style.display = 'none';
+                }
+            });
+        }
+
+        // Закрытие модального окна по клику на оверлей
+        document.getElementById('assemblyModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAssemblyModal();
+            }
+        });
+
+        // Закрытие по ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAssemblyModal();
+            }
+        });
+    });
+
+    // ========================================================================
+    // УПРАВЛЕНИЕ ДЕРЕВОМ
+    // ========================================================================
+
+    function expandAll() {
+        document.querySelectorAll('.children').forEach(function(el) {
+            el.classList.remove('collapsed');
+        });
+        document.querySelectorAll('.specif-node .arrow').forEach(function(el) {
+            el.classList.add('expanded');
+        });
+    }
+
+    function collapseAll() {
+        document.querySelectorAll('.children').forEach(function(el) {
+            el.classList.add('collapsed');
+        });
+        document.querySelectorAll('.specif-node .arrow').forEach(function(el) {
+            el.classList.remove('expanded');
+        });
+    }
+
+    function goBack() {
+        window.location.href = '/tree.html';
+    }
+
+    // ========================================================================
+    // АВТОЗАГРУЗКА
+    // ========================================================================
+
+    document.addEventListener('DOMContentLoaded', loadSpecifTree);
+</script>
+
+</body>
+</html>

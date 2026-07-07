@@ -1,0 +1,47 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/constructorDB
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Указываем схему с кавычками
+        default_schema: "\"Konstructor\""
+        # Включаем экранирование идентификаторов
+        globally_quoted_identifiers: true
+    hibernate:
+      ddl-auto: validate
+
+jackson:
+  serialization:
+    FAIL_ON_EMPTY_BEANS: false
+  default-property-inclusion: NON_NULL
+  time-zone: Europe/Moscow
+  # Ограничение на размер JSON (увеличиваем)
+  max-http-header-size: 1048576
+
+server:
+  tomcat:
+    max-http-header-size: 1048576
+    connection-timeout: 60000
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 2048
+
+
+logging:
+  level:
+    com.example.constructorKV: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

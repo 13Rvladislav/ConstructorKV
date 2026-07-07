@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 Структура спецификации</title>
+    <style>
+        /* ===== БАЗОВЫЕ СТИЛИ ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            margin: 0;
+            height: 100vh;
+        }
+        .container {
+            max-width: 100%;
+            height: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #4fc3f7;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            font-size: 20px;
+        }
+
+        /* ===== ПАРАМЕТРЫ ===== */
+        .params {
+            background: #e3f2fd;
+            padding: 8px 15px;
+            border-radius: 5px;
+            margin: 8px 0;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .params .label { font-weight: bold; color: #0d47a1; }
+        .params .value { color: #333; }
+
+        /* ===== ОШИБКИ ===== */
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px 15px;
+            border-radius: 5px;
+            display: none;
+            margin: 8px 0;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+
+        /* ===== ОСНОВНАЯ ОБЛАСТЬ ===== */
+        .main-area {
+            display: flex;
+            flex: 1;
+            gap: 15px;
+            min-height: 0;
+            margin-top: 8px;
+        }
+
+        /* ===== ЛЕВАЯ ПАНЕЛЬ (дерево) ===== */
+        .tree-panel {
+            flex: 0 0 40%;
+            min-width: 300px;
+            background: #fafafa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .tree-panel .panel-header {
+            padding: 8px 15px;
+            background: #e8eaf6;
+            font-weight: bold;
+            color: #1a237e;
+            border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+        .tree-panel .panel-body {
+            flex: 1;
+            overflow: auto;
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        /* ===== ПРАВАЯ ПАНЕЛЬ (структура) ===== */
+        .structure-panel {
+            flex: 1;
+            background: #fafafa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+        }
+        .structure-panel .panel-header {
+            padding: 8px 15px;
+            background: #e8eaf6;
+            font-weight: bold;
+            color: #1a237e;
+            border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .structure-panel .panel-header .specif-label {
+            font-size: 12px;
+            color: #4a148c;
+            font-weight: normal;
+        }
+        .structure-panel .panel-header .count {
+            font-size: 11px;
+            color: #666;
+            font-weight: normal;
+        }
+        .structure-panel .panel-body {
+            flex: 1;
+            overflow: auto;
+            padding: 8px 12px;
+        }
+
+        /* ================================================================ */
+        /* ===== ДЕРЕВО ===== */
+        /* ================================================================ */
+
+        .tree {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+        }
+
+        .tree ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .tree li {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            position: relative;
+        }
+
+        .tree .level-1 { padding-left: 20px; }
+        .tree .level-2 { padding-left: 40px; }
+        .tree .level-3 { padding-left: 60px; }
+        .tree .level-4 { padding-left: 80px; }
+        .tree .level-5 { padding-left: 100px; }
+        .tree .level-6 { padding-left: 120px; }
+        .tree .level-7 { padding-left: 140px; }
+        .tree .level-8 { padding-left: 160px; }
+        .tree .level-9 { padding-left: 180px; }
+        .tree .level-10 { padding-left: 200px; }
+
+        .node-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin: 1px 0;
+            min-height: 26px;
+            position: relative;
+            background: #fafafa;
+            border-left: 3px solid #7b1fa2;
+        }
+        .node-item:hover {
+            background: #e8e0f0;
+        }
+
+        /* КЛИКАБЕЛЬНАЯ СТРЕЛКА */
+        .node-item .arrow {
+            font-size: 10px;
+            width: 18px;
+            height: 18px;
+            text-align: center;
+            line-height: 18px;
+            color: #78909c;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+            display: inline-block;
+            cursor: pointer;
+            border-radius: 3px;
+            user-select: none;
+        }
+        .node-item .arrow:hover {
+            background: rgba(0,0,0,0.08);
+        }
+        .node-item .arrow.expanded {
+            transform: rotate(90deg);
+        }
+        .node-item .arrow.leaf {
+            color: #ccc;
+            cursor: default;
+        }
+        .node-item .arrow.leaf:hover {
+            background: transparent;
+        }
+
+        /* ТЕКСТ УЗЛА — КЛИКАБЕЛЬНЫЙ ДЛЯ ТАБЛИЦЫ */
+        .node-item .node-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            cursor: pointer;
+            flex: 1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            min-height: 22px;
+        }
+        .node-item .node-label:hover {
+            background: rgba(79, 195, 247, 0.15);
+        }
+
+        .node-item .node-label .badge {
+            font-size: 8px;
+            font-weight: bold;
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: #7b1fa2;
+            color: white;
+            flex-shrink: 0;
+        }
+        .node-item .node-label .badge.linked {
+            background: #ff6f00;
+        }
+        .node-item .node-label .obozn {
+            font-weight: 600;
+            color: #1a237e;
+        }
+        .node-item .node-label .naim {
+            color: #666;
+            font-size: 12px;
+            margin-left: 2px;
+        }
+        .node-item .node-label .meta {
+            color: #999;
+            font-size: 10px;
+            margin-left: 2px;
+        }
+        .node-item .node-label .link-badge {
+            background: #ff6f00;
+            color: white;
+            font-size: 8px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            margin-left: 2px;
+        }
+
+        /* ЦВЕТА УРОВНЕЙ */
+        .level-0 .node-item { border-left-color: #1a237e; background: #e8eaf6; }
+        .level-1 .node-item { border-left-color: #7b1fa2; }
+        .level-2 .node-item { border-left-color: #9c27b0; }
+        .level-3 .node-item { border-left-color: #ab47bc; }
+        .level-4 .node-item { border-left-color: #ba68c8; }
+        .level-5 .node-item { border-left-color: #ce93d8; }
+        .level-6 .node-item { border-left-color: #e1bee7; }
+        .level-7 .node-item { border-left-color: #f3e5f5; }
+
+        .children-container {
+            display: block;
+        }
+        .children-container.collapsed {
+            display: none;
+        }
+
+        /* ===== СТРУКТУРА ===== */
+        .empty-structure {
+            padding: 15px;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+        }
+        .loading-structure {
+            text-align: center;
+            padding: 15px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .division-section {
+            margin: 6px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .division-header {
+            padding: 5px 10px;
+            background: #e8eaf6;
+            font-weight: bold;
+            color: #1a237e;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            font-size: 12px;
+        }
+        .division-header:hover {
+            background: #c5cae9;
+        }
+        .division-header .count {
+            font-size: 10px;
+            color: #666;
+            font-weight: normal;
+        }
+        .division-body {
+            padding: 4px 8px;
+            display: block;
+        }
+        .division-body.collapsed {
+            display: none;
+        }
+
+        .structure-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .structure-table th {
+            background: #f5f5f5;
+            text-align: left;
+            padding: 3px 6px;
+            border-bottom: 2px solid #e0e0e0;
+            font-weight: bold;
+            color: #333;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-size: 11px;
+        }
+        .structure-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 11px;
+        }
+        .structure-table tr:hover {
+            background: #f8f9fa;
+        }
+        .structure-table .obozn-col {
+            font-weight: 500;
+            color: #1a237e;
+            min-width: 100px;
+        }
+        .structure-table .qty-col {
+            text-align: center;
+            min-width: 40px;
+        }
+        .structure-table .massa-col {
+            text-align: right;
+            min-width: 60px;
+        }
+        .structure-table .division-badge {
+            font-size: 8px;
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: #e0e0e0;
+            color: #666;
+            white-space: nowrap;
+        }
+        .division-badge.division-2 { background: #e3f2fd; color: #0d47a1; }
+        .division-badge.division-3 { background: #f3e5f5; color: #4a148c; }
+        .division-badge.division-4 { background: #e8f5e9; color: #1b5e20; }
+        .division-badge.division-5 { background: #fff3e0; color: #e65100; }
+        .division-badge.division-6 { background: #fce4ec; color: #880e4f; }
+        .division-badge.division-7 { background: #e0f7fa; color: #00695c; }
+
+        /* ===== КНОПКИ ===== */
+        .controls {
+            margin: 8px 0;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .btn {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.3s;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-back { background: #78909c; color: white; }
+        .btn-expand { background: #4fc3f7; color: white; }
+        .btn-collapse { background: #ffb74d; color: white; }
+        .btn-refresh { background: #66bb6a; color: white; }
+
+        .footer {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 11px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* ===== СКРОЛЛБАРЫ ===== */
+        .tree-panel .panel-body::-webkit-scrollbar,
+        .structure-panel .panel-body::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .tree-panel .panel-body::-webkit-scrollbar-track,
+        .structure-panel .panel-body::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .tree-panel .panel-body::-webkit-scrollbar-thumb,
+        .structure-panel .panel-body::-webkit-scrollbar-thumb {
+            background: #c1c7cd;
+            border-radius: 3px;
+        }
+
+        /* ===== АДАПТИВНОСТЬ ===== */
+        @media (max-width: 900px) {
+            .main-area { flex-direction: column; }
+            .tree-panel { flex: 0 0 40%; min-height: 200px; }
+            .structure-panel { flex: 1; min-height: 250px; }
+        }
+        @media (max-width: 600px) {
+            .params { flex-direction: column; gap: 3px; font-size: 12px; }
+            .structure-table { font-size: 10px; }
+            .structure-table th, .structure-table td { padding: 2px 4px; }
+            .tree-panel { min-width: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📋 Структура спецификации</h1>
+
+    <div class="params" id="paramsPanel">
+        <span><span class="label">Тема:</span> <span class="value" id="temaName">—</span></span>
+        <span><span class="label">Изделие:</span> <span class="value" id="izdelieName">—</span></span>
+        <span><span class="label">Группа:</span> <span class="value" id="groupeName">—</span></span>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-back" onclick="goBack()">🔙 Назад</button>
+        <button class="btn btn-refresh" onclick="loadStructure()">🔄 Обновить</button>
+        <button class="btn btn-expand" onclick="expandAll()">📖 Развернуть всё</button>
+        <button class="btn btn-collapse" onclick="collapseAll()">📕 Свернуть всё</button>
+    </div>
+
+    <div id="errorMsg" class="error"></div>
+
+    <div class="main-area">
+        <!-- ЛЕВАЯ ПАНЕЛЬ: ДЕРЕВО -->
+        <div class="tree-panel">
+            <div class="panel-header">🌳 Дерево спецификаций</div>
+            <div class="panel-body" id="treeContainer">
+                <div class="loading-structure">⏳ Загрузка дерева...</div>
+            </div>
+        </div>
+
+        <!-- ПРАВАЯ ПАНЕЛЬ: СТРУКТУРА -->
+        <div class="structure-panel">
+            <div class="panel-header">
+                <span>📋 Структура <span class="specif-label" id="specifLabel">—</span></span>
+                <span class="count" id="structureCount">(0 элементов)</span>
+            </div>
+            <div class="panel-body" id="structureContent">
+                <div class="empty-structure">👈 Выберите спецификацию в дереве</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Конструктор КВ API &copy; 2026</div>
+</div>
+
+<script>
+    // ========================================================================
+    // ПАРАМЕТРЫ ИЗ URL
+    // ========================================================================
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const temaId = urlParams.get('temaId');
+    const izdelieId = urlParams.get('izdelieId');
+    const groupeId = urlParams.get('groupeId');
+
+    document.getElementById('temaName').textContent = temaId || '—';
+    document.getElementById('izdelieName').textContent = izdelieId || '—';
+    document.getElementById('groupeName').textContent = groupeId || '—';
+
+    // ========================================================================
+    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+    // ========================================================================
+
+    let currentSpecifId = null;
+    let structureData = null;
+
+    // ========================================================================
+    // ЗАГРУЗКА ДЕРЕВА
+    // ========================================================================
+
+    async function loadStructure() {
+        const container = document.getElementById('treeContainer');
+        const error = document.getElementById('errorMsg');
+        const structureContent = document.getElementById('structureContent');
+
+        if (!temaId || !izdelieId || !groupeId) {
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: не указаны параметры temaId, izdelieId, groupeId';
+            container.innerHTML = '<div class="empty-structure">❌ Ошибка загрузки</div>';
+            return;
+        }
+
+        error.style.display = 'none';
+        container.innerHTML = '<div class="loading-structure">⏳ Загрузка дерева...</div>';
+        structureContent.innerHTML = '<div class="empty-structure">⏳ Загрузка...</div>';
+
+        try {
+            const url = `/api/specif/tree?temaId=${temaId}&izdelieId=${izdelieId}&groupeId=${groupeId}`;
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            const data = result.data;
+            if (data.groupInfo) {
+                document.getElementById('temaName').textContent = data.groupInfo.temaName || temaId;
+                document.getElementById('izdelieName').textContent = data.groupInfo.izdelieName || izdelieId;
+                document.getElementById('groupeName').textContent = data.groupInfo.groupeName || groupeId;
+            }
+
+            renderTree(data.roots);
+            structureContent.innerHTML = '<div class="empty-structure">👈 Выберите спецификацию в дереве</div>';
+
+        } catch (err) {
+            container.innerHTML = '<div class="empty-structure">❌ ' + err.message + '</div>';
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: ' + err.message;
+            console.error(err);
+        }
+    }
+
+    // ========================================================================
+    // РЕНДЕРИНГ ДЕРЕВА
+    // ========================================================================
+
+    function renderTree(roots) {
+        const container = document.getElementById('treeContainer');
+        if (!roots || roots.length === 0) {
+            container.innerHTML = '<div class="empty-structure">📄 Нет спецификаций</div>';
+            return;
+        }
+        container.innerHTML = buildTreeHTML(roots, 0);
+
+        setTimeout(function() {
+            document.querySelectorAll('.tree-root > .node-item').forEach(function(el) {
+                const arrow = el.querySelector('.arrow');
+                if (arrow) arrow.classList.add('expanded');
+            });
+            document.querySelectorAll('.tree-root > .children-container').forEach(function(el) {
+                el.classList.remove('collapsed');
+            });
+        }, 100);
+    }
+
+    function buildTreeHTML(nodes, level) {
+        if (!nodes || nodes.length === 0) return '';
+
+        let html = '';
+        if (level === 0) {
+            html = '<ul class="tree tree-root">';
+        } else {
+            html = '<ul>';
+        }
+
+        for (const node of nodes) {
+            const hasChildren = node.children && node.children.length > 0;
+            const isLinked = node.isLinked || false;
+            const levelClass = 'level-' + level;
+
+            html += '<li class="' + levelClass + '">';
+            html += '<div class="node-item" data-specif-id="' + node.id + '" data-has-children="' + hasChildren + '">';
+
+            // СТРЕЛКА — отдельный клик для разворачивания
+            if (hasChildren) {
+                html += '<span class="arrow expanded" onclick="event.stopPropagation(); toggleNode(this)">▶</span>';
+            } else {
+                html += '<span class="arrow leaf">•</span>';
+            }
+
+            // ТЕКСТ УЗЛА — клик для загрузки таблицы
+            html += '<span class="node-label" onclick="onLabelClick(this)" data-specif-id="' + node.id + '" data-obozn="' + (node.obozn || '') + '">';
+
+            html += '<span class="badge' + (isLinked ? ' linked' : '') + '">' + (isLinked ? '🔗' : 'СПЕЦ') + '</span>';
+            html += '<span class="obozn">' + (node.obozn || 'Без обозн') + '</span>';
+            if (node.naim) html += '<span class="naim">' + node.naim + '</span>';
+            if (node.massa) html += '<span class="meta">⚖️ ' + node.massa + ' кг</span>';
+            if (isLinked && node.linkInfo) {
+                html += '<span class="link-badge">' + node.linkInfo + '</span>';
+            }
+            html += '<span class="meta">(ID: ' + node.id + ')</span>';
+
+            html += '</span>'; // end node-label
+            html += '</div>'; // end node-item
+
+            if (hasChildren) {
+                html += '<ul class="children-container">';
+                html += buildTreeHTML(node.children, level + 1);
+                html += '</ul>';
+            }
+
+            html += '</li>';
+        }
+        html += '</ul>';
+        return html;
+    }
+
+    // ========================================================================
+    // ОБРАБОТЧИК СТРЕЛКИ — РАЗВОРАЧИВАНИЕ
+    // ========================================================================
+
+    function toggleNode(arrowElement) {
+        const parentItem = arrowElement.closest('.node-item');
+        if (!parentItem) return;
+
+        const childrenContainer = parentItem.parentElement.querySelector('.children-container');
+        if (!childrenContainer) return;
+
+        const isExpanded = arrowElement.classList.contains('expanded');
+        if (isExpanded) {
+            childrenContainer.classList.add('collapsed');
+            arrowElement.classList.remove('expanded');
+        } else {
+            childrenContainer.classList.remove('collapsed');
+            arrowElement.classList.add('expanded');
+        }
+    }
+
+    // ========================================================================
+    // ОБРАБОТЧИК КЛИКА ПО ТЕКСТУ — ЗАГРУЗКА ТАБЛИЦЫ
+    // ========================================================================
+
+    function onLabelClick(labelElement) {
+        const specifId = parseInt(labelElement.dataset.specifId);
+        if (specifId && !isNaN(specifId)) {
+            loadSpecifStructure(specifId, labelElement);
+        }
+    }
+
+    // ========================================================================
+    // ЗАГРУЗКА СТРУКТУРЫ
+    // ========================================================================
+
+    async function loadSpecifStructure(specifId, element) {
+        if (!specifId) return;
+
+        currentSpecifId = specifId;
+        const content = document.getElementById('structureContent');
+        const label = document.getElementById('specifLabel');
+        const count = document.getElementById('structureCount');
+
+        const obozn = element ? element.dataset.obozn || specifId : specifId;
+        label.textContent = '— ' + obozn;
+        content.innerHTML = '<div class="loading-structure">⏳ Загрузка структуры...</div>';
+
+        try {
+            const response = await fetch('/api/structure/' + specifId);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            structureData = result.data || [];
+            count.textContent = '(' + structureData.length + ' элементов)';
+
+            if (structureData.length === 0) {
+                content.innerHTML = '<div class="empty-structure">📄 Нет элементов структуры</div>';
+                return;
+            }
+
+            renderStructure(structureData);
+
+        } catch (err) {
+            content.innerHTML = '<div class="empty-structure">❌ Ошибка: ' + err.message + '</div>';
+            console.error(err);
+        }
+    }
+
+    // ========================================================================
+    // РЕНДЕРИНГ СТРУКТУРЫ
+    // ========================================================================
+
+    function renderStructure(data) {
+        const content = document.getElementById('structureContent');
+
+        const groups = {};
+        for (const item of data) {
+            const division = item.idDivision || 0;
+            if (!groups[division]) {
+                groups[division] = [];
+            }
+            groups[division].push(item);
+        }
+
+        const sortedDivisions = Object.keys(groups).sort((a, b) => parseInt(a) - parseInt(b));
+
+        if (sortedDivisions.length === 0) {
+            content.innerHTML = '<div class="empty-structure">📄 Нет элементов структуры</div>';
+            return;
+        }
+
+        let html = '';
+        for (const divisionId of sortedDivisions) {
+            const items = groups[divisionId];
+            const divisionName = getDivisionName(parseInt(divisionId));
+            const badgeClass = getDivisionBadgeClass(parseInt(divisionId));
+
+            html += `
+                <div class="division-section">
+                    <div class="division-header" onclick="toggleDivision(this)">
+                        <span>${divisionName}</span>
+                        <span class="count">(${items.length})</span>
+                    </div>
+                    <div class="division-body">
+                        <table class="structure-table">
+                            <thead>
+                                <tr>
+                                    <th>Обозначение</th>
+                                    <th>Наименование</th>
+                                    <th class="qty-col">Кол-во</th>
+                                    <th class="massa-col">Масса, кг</th>
+                                    <th>Материал</th>
+                                    <th>Раздел</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+            for (const item of items) {
+                html += `
+                            <tr>
+                                <td class="obozn-col">${item.obozn || '—'}</td>
+                                <td>${item.naim || '—'}</td>
+                                <td class="qty-col">${item.quantity || 1}</td>
+                                <td class="massa-col">${item.massa || '—'}</td>
+                                <td>${item.material || '—'}</td>
+                                <td><span class="division-badge ${badgeClass}">${divisionName}</span></td>
+                            </tr>
+                        `;
+            }
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        content.innerHTML = html;
+    }
+
+    // ========================================================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ========================================================================
+
+    function getDivisionName(id) {
+        const names = {
+            2: '📄 Документация',
+            3: '📦 Сборки',
+            4: '⚙️ Детали',
+            5: '🔩 Стандартные',
+            6: '🛒 Покупные',
+            7: '🧪 Материалы'
+        };
+        return names[id] || '📂 Раздел ' + id;
+    }
+
+    function getDivisionBadgeClass(id) {
+        return 'division-' + id;
+    }
+
+    function toggleDivision(element) {
+        const body = element.nextElementSibling;
+        if (body) {
+            body.classList.toggle('collapsed');
+        }
+    }
+
+    function expandAll() {
+        document.querySelectorAll('.division-body').forEach(function(el) {
+            el.classList.remove('collapsed');
+        });
+        document.querySelectorAll('.node-item .arrow').forEach(function(el) {
+            el.classList.add('expanded');
+        });
+        document.querySelectorAll('.children-container').forEach(function(el) {
+            el.classList.remove('collapsed');
+        });
+    }
+
+    function collapseAll() {
+        document.querySelectorAll('.division-body').forEach(function(el) {
+            el.classList.add('collapsed');
+        });
+        document.querySelectorAll('.node-item .arrow').forEach(function(el) {
+            el.classList.remove('expanded');
+        });
+        document.querySelectorAll('.children-container').forEach(function(el) {
+            el.classList.add('collapsed');
+        });
+    }
+
+    function goBack() {
+        window.location.href = '/tree.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', loadStructure);
+</script>
+
+</body>
+</html>

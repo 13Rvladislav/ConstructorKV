@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🌳 Дерево навигации</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #4fc3f7;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stats {
+            background: #e8eaf6;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .stats span {
+            margin-right: 20px;
+            font-size: 14px;
+        }
+        .stats .count { font-weight: bold; color: #1a237e; }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .tree ul {
+            list-style: none;
+            padding-left: 20px;
+            margin: 5px 0;
+        }
+        .tree li { padding: 2px 0; }
+
+        /* ===== ТЕМА ===== */
+        .tema-node {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #e8eaf6;
+            border-left: 4px solid #1a237e;
+            margin: 2px 0;
+        }
+        .tema-node:hover { background: #c5cae9; }
+        .tema-node .badge { background: #1a237e; color: white; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; }
+        .tema-node .name { font-weight: bold; color: #1a237e; font-size: 15px; }
+        .tema-node .info { color: #666; font-size: 12px; margin-left: 8px; }
+
+        /* ===== ИЗДЕЛИЕ ===== */
+        .izdelie-node {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #e3f2fd;
+            border-left: 4px solid #4fc3f7;
+            margin: 2px 0;
+        }
+        .izdelie-node:hover { background: #bbdefb; }
+        .izdelie-node .badge { background: #4fc3f7; color: #1a237e; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; }
+        .izdelie-node .name { font-weight: bold; color: #0d47a1; font-size: 14px; }
+        .izdelie-node .full-name { color: #666; font-size: 12px; margin-left: 6px; }
+
+        /* ===== ГРУППА ===== */
+        .groupe-node {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 5px;
+            background: #fff3e0;
+            border-left: 4px solid #ffb74d;
+            margin: 2px 0;
+            cursor: pointer;
+        }
+        .groupe-node:hover { background: #ffe0b2; }
+        .groupe-node .badge { background: #ffb74d; color: #4a3000; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; }
+        .groupe-node .name { color: #4a3000; font-size: 13px; }
+        .groupe-node .goto-link {
+            margin-left: auto;
+            text-decoration: none;
+            background: #4fc3f7;
+            color: #1a237e;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .groupe-node .goto-link:hover {
+            background: #29b6f6;
+        }
+
+        /* ===== НЕТ ГРУПП ===== */
+        .no-groups {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            border-left: 4px solid #e0e0e0;
+            margin: 2px 0;
+            cursor: default;
+            opacity: 0.7;
+        }
+        .no-groups .badge { background: #e0e0e0; color: #666; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; }
+        .no-groups .name { color: #666; font-size: 13px; }
+        .no-groups .msg { color: #ef5350; font-size: 11px; margin-left: 6px; }
+
+        .arrow { color: #78909c; font-size: 12px; width: 16px; text-align: center; }
+        .children { display: block; }
+        .children.collapsed { display: none; }
+
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .search-box {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .search-box:focus { border-color: #4fc3f7; outline: none; }
+        .btn {
+            padding: 6px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-expand { background: #4fc3f7; color: white; }
+        .btn-collapse { background: #ffb74d; color: white; }
+        .btn-refresh { background: #66bb6a; color: white; }
+        .btn:hover { opacity: 0.8; }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .tema-node, .izdelie-node, .groupe-node, .no-groups { flex-wrap: wrap; }
+            .tema-node .info { margin-left: 0; width: 100%; }
+            .groupe-node .goto-link { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌳 Дерево навигации</h1>
+
+    <div class="stats">
+        <span>📦 Узлов: <span class="count" id="totalCount">0</span></span>
+        <span>📁 Тем: <span id="temaCount">0</span></span>
+        <span id="statusText" style="color: #ffb74d;">⏳ Загрузка...</span>
+    </div>
+
+    <div class="controls">
+        <input type="text" class="search-box" id="searchInput" placeholder="🔍 Поиск по дереву..." oninput="filterTree(this.value)">
+        <button class="btn btn-expand" onclick="expandAll()">📖 Развернуть всё</button>
+        <button class="btn btn-collapse" onclick="collapseAll()">📕 Свернуть всё</button>
+        <button class="btn btn-refresh" onclick="loadTree()">🔄 Обновить</button>
+    </div>
+
+    <div id="errorMsg" class="error"></div>
+    <div id="loading" class="loading">⏳ Загрузка дерева...</div>
+    <div id="treeContainer" class="tree" style="display:none;"></div>
+
+    <div class="footer">Конструктор КВ API &copy; 2026</div>
+</div>
+
+<script>
+    let allData = null;
+
+    async function loadTree() {
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('treeContainer');
+        const error = document.getElementById('errorMsg');
+        const status = document.getElementById('statusText');
+
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        error.style.display = 'none';
+        status.textContent = '⏳ Загрузка...';
+        status.style.color = '#ffb74d';
+
+        try {
+            const response = await fetch('/api/tree/full');
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка');
+            }
+
+            allData = result.data;
+            document.getElementById('totalCount').textContent = allData.totalNodes || 0;
+            document.getElementById('temaCount').textContent = allData.temas?.length || 0;
+
+            renderTree(allData.temas);
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            status.textContent = '✅ Загружено';
+            status.style.color = '#66bb6a';
+
+        } catch (err) {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: ' + err.message;
+            status.textContent = '❌ Ошибка';
+            status.style.color = '#ef5350';
+            console.error(err);
+        }
+    }
+
+    function renderTree(temas) {
+        const container = document.getElementById('treeContainer');
+        container.innerHTML = buildTreeHTML(temas);
+    }
+
+    function buildTreeHTML(temas) {
+        if (!temas || temas.length === 0) {
+            return '<p style="color:#999;text-align:center;">Нет данных</p>';
+        }
+
+        let html = '<ul>';
+        for (const tema of temas) {
+            const hasChildren = tema.izdelia && tema.izdelia.length > 0;
+
+            html += '<li>';
+            // ТЕМА
+            html += `<div class="tema-node" onclick="toggleChildren(this)" data-has="${hasChildren}">`;
+            html += `<span class="arrow">${hasChildren ? '▶' : '•'}</span>`;
+            html += `<span class="badge">ТЕМА</span>`;
+            html += `<span class="name">${tema.name || 'Без названия'}</span>`;
+            html += `<span class="info">(ID: ${tema.id}${tema.indeksKd ? ', Индекс КД: ' + tema.indeksKd : ''})</span>`;
+            html += '</div>';
+
+            if (hasChildren) {
+                html += `<ul class="children">`;
+                for (const izd of tema.izdelia) {
+                    const hasGroups = izd.groupes && izd.groupes.length > 0;
+
+                    html += '<li>';
+                    // ИЗДЕЛИЕ
+                    html += `<div class="izdelie-node" onclick="toggleChildren(this)" data-has="${hasGroups}">`;
+                    html += `<span class="arrow">${hasGroups ? '▶' : '•'}</span>`;
+                    html += `<span class="badge">ИЗДЕЛИЕ</span>`;
+                    html += `<span class="name">${izd.name || 'Без названия'}</span>`;
+                    if (izd.fullName) {
+                        html += `<span class="full-name">— ${izd.fullName}</span>`;
+                    }
+                    html += `<span style="color:#999;font-size:11px;">(ID: ${izd.id})</span>`;
+                    html += '</div>';
+
+                    if (hasGroups) {
+                        html += `<ul class="children">`;
+                        for (const grp of izd.groupes) {
+                            // ГРУППА — с ссылкой на спецификации!
+                            html += '<li>';
+                            html += `<div class="groupe-node">`;
+                            html += `<span class="arrow" style="color:#ffb74d;">•</span>`;
+                            html += `<span class="badge">ГРУППА</span>`;
+                            html += `<span class="name">${grp.name || 'Без названия'}</span>`;
+                            html += `<span style="color:#999;font-size:11px;">(ID: ${grp.id})</span>`;
+                            // ССЫЛКА НА СПЕЦИФИКАЦИИ
+                            html += `<a class="goto-link" href="/specif.html?temaId=${tema.id}&izdelieId=${izd.id}&groupeId=${grp.id}">📋 Спецификации</a>`;
+                            html += '</div>';
+                            html += '</li>';
+                        }
+                        html += '</ul>';
+                    } else {
+                        html += `<ul class="children">`;
+                        html += '<li>';
+                        html += `<div class="no-groups">`;
+                        html += `<span class="badge">⚠️</span>`;
+                        html += `<span class="name">Нет групп</span>`;
+                        html += `<span class="msg">— изделие без групп</span>`;
+                        html += '</div>';
+                        html += '</li>';
+                        html += '</ul>';
+                    }
+
+                    html += '</li>';
+                }
+                html += '</ul>';
+            } else {
+                html += `<ul class="children">`;
+                html += '<li>';
+                html += `<div class="no-groups">`;
+                html += `<span class="badge">⚠️</span>`;
+                html += `<span class="name">Нет изделий</span>`;
+                html += '</div>';
+                html += '</li>';
+                html += '</ul>';
+            }
+
+            html += '</li>';
+        }
+        html += '</ul>';
+        return html;
+    }
+
+    function toggleChildren(el) {
+        if (el.dataset.has === 'false') return;
+        const children = el.parentElement.querySelector('ul.children');
+        if (!children) return;
+        const arrow = el.querySelector('.arrow');
+        if (children.classList.contains('collapsed')) {
+            children.classList.remove('collapsed');
+            arrow.textContent = '▶';
+        } else {
+            children.classList.add('collapsed');
+            arrow.textContent = '▶';
+        }
+    }
+
+    function expandAll() {
+        document.querySelectorAll('.children').forEach(el => el.classList.remove('collapsed'));
+        document.querySelectorAll('.tema-node .arrow, .izdelie-node .arrow').forEach(el => el.textContent = '▶');
+    }
+
+    function collapseAll() {
+        document.querySelectorAll('.children').forEach(el => el.classList.add('collapsed'));
+        document.querySelectorAll('.tema-node .arrow, .izdelie-node .arrow').forEach(el => el.textContent = '▶');
+    }
+
+    function filterTree(query) {
+        const q = query.toLowerCase().trim();
+        const items = document.querySelectorAll('.tema-node, .izdelie-node, .groupe-node');
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const show = !q || text.includes(q);
+            item.style.display = show ? '' : 'none';
+            if (show) {
+                let parent = item.closest('li');
+                while (parent) {
+                    const pNode = parent.querySelector('.tema-node, .izdelie-node');
+                    if (pNode) pNode.style.display = '';
+                    const childUl = parent.querySelector('ul.children');
+                    if (childUl) childUl.classList.remove('collapsed');
+                    parent = parent.parentElement?.closest('li');
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadTree);
+</script>
+
+</body>
+</html>
