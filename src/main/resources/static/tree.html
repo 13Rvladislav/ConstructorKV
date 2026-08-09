@@ -298,15 +298,15 @@
                     if (hasGroups) {
                         html += `<ul class="children">`;
                         for (const grp of izd.groupes) {
-                            // ГРУППА — с ссылкой на спецификации!
+                            // ГРУППА — ссылка на КВ таблицу!
                             html += '<li>';
                             html += `<div class="groupe-node">`;
                             html += `<span class="arrow" style="color:#ffb74d;">•</span>`;
                             html += `<span class="badge">ГРУППА</span>`;
                             html += `<span class="name">${grp.name || 'Без названия'}</span>`;
                             html += `<span style="color:#999;font-size:11px;">(ID: ${grp.id})</span>`;
-                            // ССЫЛКА НА СПЕЦИФИКАЦИИ
-                            html += `<a class="goto-link" href="/specif.html?temaId=${tema.id}&izdelieId=${izd.id}&groupeId=${grp.id}">📋 Спецификации</a>`;
+                            // ССЫЛКА НА ТАБЛИЦУ КВ
+                            html += `<a class="goto-link" href="/kvtable.html?temaId=${tema.id}&izdelieId=${izd.id}&groupeId=${grp.id}">📋 КВ</a>`;
                             html += '</div>';
                             html += '</li>';
                         }

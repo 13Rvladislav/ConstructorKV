@@ -1,4 +1,3 @@
-// src/main/java/com/example/constructorKV/kv/entity/KomplektovkaEntity.java
 package com.example.constructorKV.kv.entity;
 
 import jakarta.persistence.*;
@@ -16,7 +15,7 @@ import java.time.LocalDateTime;
 public class KomplektovkaEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)  // <-- ИЗМЕНИТЬ НА IDENTITY
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "\"ID\"")
     private Integer id;
 
@@ -49,4 +48,10 @@ public class KomplektovkaEntity {
 
     @Column(name = "\"SL_ZAP_AGREED_DATE\"")
     private LocalDateTime slZapAgreedDate;
+
+    @Column(name = "\"PARENT_KV_ID\"")
+    private Integer parentKvId;
+
+    @Column(name = "\"KV_STATUS_ID\"")
+    private Integer kvStatusId;  // <--- ССЫЛКА НА KV_STATUS_DICT
 }

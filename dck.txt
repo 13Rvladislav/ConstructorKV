@@ -1,0 +1,116 @@
+добро работает ,я приду на работу как мне поменять на удаленную бд
+✅ КАК ПЕРЕКЛЮЧИТЬСЯ НА УДАЛЕННУЮ БД (НА РАБОТЕ)
+СПОСОБ 1: ЧЕРЕЗ ENV ПРИ ЗАПУСКЕ (БЕЗ ПЕРЕСБОРКИ)
+powershell
+# Остановить и удалить старый контейнер
+docker stop constructor-kv
+docker rm constructor-kv
+
+# Запустить с удаленной БД
+docker run -d `
+  --name constructor-kv `
+  -p 8091:8090 `
+  -e SPRING_DATASOURCE_URL="jdbc:postgresql://192.168.1.100:5432/constructorDB" `
+  -e SPRING_DATASOURCE_USERNAME=postgres `
+  -e SPRING_DATASOURCE_PASSWORD=your_password `
+  constructor-kv-app
+Замени:
+
+192.168.1.100 → IP или hostname твоей удаленной БД
+
+constructorDB → имя базы данных
+
+postgres → пользователь
+
+your_password → пароль
+
+СПОСОБ 2: ЧЕРЕЗ ФАЙЛ .env (УДОБНО)
+Создай файл .env в папке проекта:
+
+env
+SPRING_DATASOURCE_URL=jdbc:postgresql://192.168.1.100:5432/constructorDB
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=your_password
+Запуск:
+
+powershell
+docker run -d `
+  --name constructor-kv `
+  -p 8091:8090 `
+  --env-file .env `
+  constructor-kv-app
+СПОСОБ 3: ЧЕРЕЗ application.properties (ПЕРЕСБОРКА)
+Путь: src/main/resources/application.properties
+
+properties
+# Для локальной разработки
+# spring.datasource.url=jdbc:postgresql://host.docker.internal:5432/constructorDB
+
+# Для удаленного сервера (раскомментируй на работе)
+spring.datasource.url=jdbc:postgresql://192.168.1.100:5432/constructorDB
+spring.datasource.username=postgres
+spring.datasource.password=your_password
+После этого пересобери и запусти:
+
+powershell
+docker build -t constructor-kv-app .
+docker run -d --name constructor-kv -p 8091:8090 constructor-kv-app
+📋 ПРОВЕРЬ ПОДКЛЮЧЕНИЕ К УДАЛЕННОЙ БД:
+powershell
+# Проверить логи
+docker logs -f constructor-kv
+
+# Должно быть:
+# Started ConstructorKvApplication
+# А НЕ: Connection refused
+🚨 ЕСЛИ УДАЛЕННАЯ БД НЕ ДОСТУПНА ИЗ КОНТЕЙНЕРА:
+Возможно, нужно использовать --network host (только Linux) или указать DNS-имя:
+
+powershell
+docker run -d `
+  --name constructor-kv `
+  -p 8091:8090 `
+  -e SPRING_DATASOURCE_URL="jdbc:postgresql://postgres-server.company.local:5432/constructorDB" `
+  -e SPRING_DATASOURCE_USERNAME=postgres `
+  -e SPRING_DATASOURCE_PASSWORD=your_password `
+  constructor-kv-app
+ГОТОВО! 🚀
+
+
+
+
+docker rm -f constructor-kv
+docker run -d `
+  --name constructor-kv `
+  -p 8091:8091 `
+  -e SPRING_PROFILES_ACTIVE=docker `
+  -e SPRING_DATASOURCE_URL="jdbc:postgresql://192.168.1.100:5432/constructorDB" `
+  -e SPRING_DATASOURCE_USERNAME=postgres `
+  -e SPRING_DATASOURCE_PASSWORD=your_password `
+  constructor-kv-app
+
+
+
+
+================================================================================
+# 1. Остановить и удалить старый контейнер
+docker stop constructor-kv
+docker rm constructor-kv
+
+# 2. Пересобрать образ (без кеша, чтобы точно все обновилось)
+docker build --no-cache -t constructor-kv-app .
+
+# 3. Запустить новый контейнер
+docker run -d `
+  --name constructor-kv `
+  -p 8091:8091 `
+  -e SPRING_PROFILES_ACTIVE=docker `
+  -e SPRING_DATASOURCE_URL="jdbc:postgresql://host.docker.internal:5432/constructorDB" `
+  -e SPRING_DATASOURCE_USERNAME=postgres `
+  -e SPRING_DATASOURCE_PASSWORD=postgres `
+  constructor-kv-app
+
+# 4. Проверить логи
+docker logs -f constructor-kv
+
+

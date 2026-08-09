@@ -77,43 +77,50 @@ public class SpecifService {
             return new ArrayList<>();
         }
 
-        // Ключ: уникальный ID (для дублей используем ID + порядковый номер)
-        Map<String, SpecifNodeDto> nodeMap = new LinkedHashMap<>();
-        Map<Integer, Integer> idCounter = new HashMap<>();
+        // Ключ: уникальный ID (оригинальный ID из SPECIF22)
+        Map<Integer, SpecifNodeDto> nodeMap = new LinkedHashMap<>();
         List<SpecifNodeDto> roots = new ArrayList<>();
 
-        // ШАГ 1: Создаём все узлы
+        // ШАГ 1: Создаём все узлы по оригинальному ID
         for (Object[] row : treeData) {
-            Integer id = (Integer) row[0];
+            Integer id = (Integer) row[0];          // оригинальный ID
             Integer parentId = (Integer) row[1];
             Integer linkImpl = (Integer) row[2];
             String obozn = (String) row[3];
             String naim = (String) row[4];
-            String linkStatus = (String) row[5];
-
-            int count = idCounter.getOrDefault(id, 0);
-            idCounter.put(id, count + 1);
-            String uniqueKey = id + "_" + count;
+            Double massa = (Double) row[5];
+            String letters = (String) row[6];
+            Short flag = (Short) row[7];
+            Integer level = (Integer) row[8];
+            Integer displayId = (Integer) row[9];
+            String linkStatus = (String) row[10];
 
             boolean isLinked = linkImpl != null && linkImpl > 0;
 
+            // Используем display_id как ключ, но храним оригинальный ID
             SpecifNodeDto node = SpecifNodeDto.builder()
-                    .id(id)
+                    .id(id)  // оригинальный ID
+                    .displayId(displayId)  // ID для отображения (с учетом LINK)
                     .parentId(parentId)
                     .obozn(obozn != null ? obozn : "")
                     .naim(naim != null ? naim : "")
+                    .massa(massa)
+                    .letters(letters)
+                    .flag(flag)
+                    .level(level)
                     .isLinked(isLinked)
                     .linkInfo(isLinked ? "🔗 Заимствовано из ID " + linkImpl : null)
                     .children(new ArrayList<>())
                     .build();
 
-            nodeMap.put(uniqueKey, node);
+            // Используем displayId как ключ в мапе
+            nodeMap.put(displayId, node);
         }
 
         log.info("📦 Создано {} узлов", nodeMap.size());
 
-        // ШАГ 2: Строим связи
-        for (Map.Entry<String, SpecifNodeDto> entry : nodeMap.entrySet()) {
+        // ШАГ 2: Строим связи по display_id
+        for (Map.Entry<Integer, SpecifNodeDto> entry : nodeMap.entrySet()) {
             SpecifNodeDto node = entry.getValue();
 
             if (node.getParentId() == null) {
@@ -121,16 +128,8 @@ public class SpecifService {
                 continue;
             }
 
-            // Ищем родителя
-            SpecifNodeDto parent = null;
-            for (Map.Entry<String, SpecifNodeDto> pEntry : nodeMap.entrySet()) {
-                SpecifNodeDto pNode = pEntry.getValue();
-                if (pNode.getId().equals(node.getParentId())) {
-                    parent = pNode;
-                    break;
-                }
-            }
-
+            // Ищем родителя по display_id
+            SpecifNodeDto parent = nodeMap.get(node.getParentId());
             if (parent != null) {
                 parent.getChildren().add(node);
             } else {

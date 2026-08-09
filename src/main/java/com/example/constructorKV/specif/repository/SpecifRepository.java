@@ -80,71 +80,66 @@ public interface SpecifRepository extends JpaRepository<Specif22Entity, Integer>
      * @return список строк дерева
      */
     @Query(value = """
-        WITH RECURSIVE "SpecHierarchy" AS (
-            -- Базовый уровень: корневая спецификация
-            SELECT 
-                "ID",
-                "ID_PARENT",
-                "LINK_IMPLEMETATION",
-                "OBOZN",
-                "NAIM",
-                0 AS level,
-                CAST("OBOZN" AS VARCHAR(500)) AS sort_path,
-                CASE 
-                    WHEN "LINK_IMPLEMETATION" IS NOT NULL 
-                    THEN 'ЗАИМСТВОВАНО (→ ID ' || "LINK_IMPLEMETATION" || ')'
-                    ELSE 'ОРИГИНАЛ'
-                END AS "ССЫЛОЧНОСТЬ"
-            FROM "Konstructor"."SPECIF22"
-            WHERE "ID" = :rootId
-
-            UNION ALL
-
-            -- Рекурсивный уровень: дети с учётом LINK_IMPLEMETATION
-            SELECT 
-                CASE 
-                    WHEN s."LINK_IMPLEMETATION" IS NOT NULL THEN s2."ID" 
-                    ELSE s."ID" 
-                END AS "ID",
-                s."ID_PARENT",
-                CASE 
-                    WHEN s."LINK_IMPLEMETATION" IS NOT NULL THEN s2."LINK_IMPLEMETATION" 
-                    ELSE s."LINK_IMPLEMETATION" 
-                END AS "LINK_IMPLEMETATION",
-                CASE 
-                    WHEN s."LINK_IMPLEMETATION" IS NOT NULL THEN s2."OBOZN" 
-                    ELSE s."OBOZN" 
-                END AS "OBOZN",
-                CASE 
-                    WHEN s."LINK_IMPLEMETATION" IS NOT NULL THEN s2."NAIM" 
-                    ELSE s."NAIM" 
-                END AS "NAIM",
-                sh.level + 1,
-                CAST(sh.sort_path || ' → ' || COALESCE(
-                    CASE 
-                        WHEN s."LINK_IMPLEMETATION" IS NOT NULL THEN s2."OBOZN" 
-                        ELSE s."OBOZN" 
-                    END,
-                    'NULL'
-                ) AS VARCHAR(500)) AS sort_path,
-                CASE 
-                    WHEN s."LINK_IMPLEMETATION" IS NOT NULL 
-                    THEN 'ЗАИМСТВОВАНО (→ ID ' || s."LINK_IMPLEMETATION" || ')'
-                    ELSE 'ОРИГИНАЛ'
-                END AS "ССЫЛОЧНОСТЬ"
-            FROM "Konstructor"."SPECIF22" s
-            LEFT JOIN "Konstructor"."SPECIF22" s2 ON s."LINK_IMPLEMETATION" = s2."ID"
-            INNER JOIN "SpecHierarchy" sh ON s."ID_PARENT" = sh."ID"
-        )
+    WITH RECURSIVE "SpecHierarchy" AS (
+        -- Базовый уровень: корневая спецификация
         SELECT 
-            "ID", 
-            "ID_PARENT", 
-            "LINK_IMPLEMETATION", 
-            "OBOZN", 
+            "ID",
+            "ID_PARENT",
+            "LINK_IMPLEMETATION",
+            "OBOZN",
             "NAIM",
-            "ССЫЛОЧНОСТЬ"
-        FROM "SpecHierarchy"
-        ORDER BY sort_path
-        """, nativeQuery = true)
+            "MASSA",
+            "LETTERS",
+            "FLAG",
+            0 AS level,
+            CAST("OBOZN" AS VARCHAR(500)) AS sort_path,
+            "ID" AS display_id,
+            CASE 
+                WHEN "LINK_IMPLEMETATION" IS NOT NULL 
+                THEN 'ЗАИМСТВОВАНО (→ ID ' || "LINK_IMPLEMETATION" || ')'
+                ELSE 'ОРИГИНАЛ'
+            END AS "ССЫЛОЧНОСТЬ"
+        FROM "Konstructor"."SPECIF22"
+        WHERE "ID" = :rootId
+
+        UNION ALL
+
+        -- Рекурсивный уровень: дети с учётом LINK_IMPLEMETATION
+        SELECT 
+            s."ID",
+            s."ID_PARENT",
+            s."LINK_IMPLEMETATION",
+            COALESCE(linked."OBOZN", s."OBOZN") AS "OBOZN",
+            COALESCE(linked."NAIM", s."NAIM") AS "NAIM",
+            COALESCE(linked."MASSA", s."MASSA") AS "MASSA",
+            COALESCE(linked."LETTERS", s."LETTERS") AS "LETTERS",
+            COALESCE(linked."FLAG", s."FLAG") AS "FLAG",
+            sh.level + 1,
+            CAST(sh.sort_path || ' → ' || COALESCE(linked."OBOZN", s."OBOZN") AS VARCHAR(500)) AS sort_path,
+            COALESCE(s."LINK_IMPLEMETATION", s."ID") AS display_id,
+            CASE 
+                WHEN s."LINK_IMPLEMETATION" IS NOT NULL 
+                THEN 'ЗАИМСТВОВАНО (→ ID ' || s."LINK_IMPLEMETATION" || ')'
+                ELSE 'ОРИГИНАЛ'
+            END AS "ССЫЛОЧНОСТЬ"
+        FROM "Konstructor"."SPECIF22" s
+        LEFT JOIN "Konstructor"."SPECIF22" linked ON s."LINK_IMPLEMETATION" = linked."ID"
+        INNER JOIN "SpecHierarchy" sh ON s."ID_PARENT" = sh."ID"
+    )
+    SELECT 
+        "ID", 
+        "ID_PARENT", 
+        "LINK_IMPLEMETATION", 
+        "OBOZN", 
+        "NAIM",
+        "MASSA",
+        "LETTERS",
+        "FLAG",
+        "level",
+        "display_id",
+        "ССЫЛОЧНОСТЬ"
+    FROM "SpecHierarchy"
+    ORDER BY sort_path
+    """, nativeQuery = true)
     List<Object[]> buildSpecifTree(@Param("rootId") Integer rootId);
 }

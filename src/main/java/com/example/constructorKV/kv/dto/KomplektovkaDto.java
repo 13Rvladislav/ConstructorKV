@@ -1,48 +1,120 @@
 package com.example.constructorKV.kv.dto;
 
+import com.example.constructorKV.common.annotation.ExternalEntity;
+import com.example.constructorKV.common.annotation.ExternalField;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * DTO ДЛЯ КОМПЛЕКТОВОЧНОЙ ВЕДОМОСТИ
- *
- * Используется для передачи данных клиенту.
- * Содержит информацию для отображения в выпадающем списке.
- *
- * @Builder - паттерн Builder
- * @Data - геттеры, сеттеры, toString
- */
 @Data
 @Builder
+@ExternalEntity(
+        name = "Komplektovka",
+        displayName = "Комплектовочная ведомость",
+        description = "Сущность комплектовочной ведомости"
+)
 public class KomplektovkaDto {
 
-    /** ID КВ */
+    @ExternalField(
+            displayName = "ID",
+            isKey = true,
+            category = "Идентификаторы",
+            displayOrder = 1,
+            isRequired = true
+    )
     private Integer id;
 
-    /** Проектное обозначение */
+    @ExternalField(
+            displayName = "Обозначение",
+            displayOrder = 2,
+            isRequired = true
+    )
     private String design;
 
-    /** ID служебной записки */
+    @ExternalField(
+            displayName = "ID служебной записки",
+            isNavigation = true,
+            relatedEntity = "SlZapiska",
+            category = "Идентификаторы",
+            displayOrder = 3,
+            isRequired = true
+    )
     private Integer idSz;
 
-    /** Строка со сборками */
+    @ExternalField(
+            displayName = "Сборки",
+            displayOrder = 4,
+            isRequired = false
+    )
     private String sborkiSz;
 
-    /** Дата создания (для отображения) */
+    @ExternalField(
+            displayName = "Дата создания",
+            category = "Даты",
+            displayOrder = 5,
+            isRequired = true
+    )
     private String dateCreate;
 
-    /** Статус (активна/архив) */
+    @ExternalField(
+            displayName = "Дата архивации",
+            category = "Даты",
+            displayOrder = 6,
+            isRequired = false
+    )
+    private String dateArchiving;
+
+    @ExternalField(
+            displayName = "Статус",
+            displayOrder = 7,
+            isRequired = true
+    )
     private String status;
 
-    /**
-     * Отображаемое имя для ComboBox
-     * Формат: "КВ-XXX — 12.06.2024"
-     *
-     * @return строка для отображения в выпадающем списке
-     */
-    public String getDisplayName() {
-        String designPart = (design != null && !design.isEmpty()) ? design : "КВ-" + id;
-        String datePart = (dateCreate != null) ? dateCreate : "Не сформирована";
-        return designPart + " — " + datePart;
-    }
+    @ExternalField(
+            displayName = "Кем сформирована",
+            isNavigation = true,
+            relatedEntity = "Person",
+            category = "Пользователи",
+            displayOrder = 8,
+            isRequired = false
+    )
+    private Integer formedBy;
+
+    @ExternalField(
+            displayName = "Кем согласована",
+            isNavigation = true,
+            relatedEntity = "Person",
+            category = "Пользователи",
+            displayOrder = 9,
+            isRequired = false
+    )
+    private Integer approvedBy;
+
+    @ExternalField(
+            displayName = "Дата согласования",
+            category = "Даты",
+            displayOrder = 10,
+            isRequired = false
+    )
+    private String approvedDate;
+
+    @ExternalField(
+            displayName = "Родительская КВ (декомпозиция)",
+            isNavigation = true,
+            relatedEntity = "Komplektovka",
+            category = "Связи",
+            displayOrder = 11,
+            isRequired = false
+    )
+    private Integer parentKvId;
+
+    @ExternalField(
+            displayName = "ID статуса КВ",
+            isNavigation = true,
+            relatedEntity = "KvStatusDict",
+            category = "Идентификаторы",
+            displayOrder = 12,
+            isRequired = false
+    )
+    private Integer kvStatusId;
 }

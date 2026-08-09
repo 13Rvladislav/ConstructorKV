@@ -1,4 +1,3 @@
-// src/main/java/com/example/constructorKV/slzap/repository/SlZapiskaRepository.java
 package com.example.constructorKV.slzap.repository;
 
 import com.example.constructorKV.slzap.entity.SlZapiskaEntity;
@@ -11,10 +10,6 @@ import java.util.List;
 
 @Repository
 public interface SlZapiskaRepository extends JpaRepository<SlZapiskaEntity, Integer> {
-
-    // ========================================================================
-    // СУЩЕСТВУЮЩИЕ МЕТОДЫ
-    // ========================================================================
 
     @Query("SELECT s FROM SlZapiskaEntity s ORDER BY s.obozn")
     List<SlZapiskaEntity> findAllOrdered();
@@ -73,28 +68,90 @@ public interface SlZapiskaRepository extends JpaRepository<SlZapiskaEntity, Inte
     List<Object[]> findAssembliesForSlZap(@Param("slZapiskaId") Integer slZapiskaId);
 
     // ========================================================================
-    // НОВЫЕ МЕТОДЫ
+    // МЕТОДЫ ДЛЯ KVTABLE (БЕЗ LINK)
     // ========================================================================
 
-    /**
-     * ПОЛУЧИТЬ ИЕРАРХИЮ СБОРОК ДЛЯ СПЕЦИФИКАЦИИ С ИНФОРМАЦИЕЙ ОБ ИЗДЕЛИИ
-     *
-     * Возвращает Object[] где:
-     * [0] - ID спецификации
-     * [1] - ID родителя
-     * [2] - Обозначение (с учётом LINK)
-     * [3] - Наименование (с учётом LINK)
-     * [4] - Количество (из STRUCTURE_SPECIF)
-     * [5] - Масса (из STRUCTURE_SPECIF, RMASSA)
-     * [6] - Уровень вложенности
-     * [7] - Полный путь (для отладки)
-     * [8] - STRUCTURE_SPECIF.ID (оригинальный ID)
-     * [9] - IZDELIE.NAIM_IZD (НОМЕР изделия, например "101")
-     * [10] - IZDELIE.ID (ID изделия)
-     */
+    @Query(value = """
+        WITH RECURSIVE spec_tree AS (
+            SELECT 
+                s."ID" AS original_id,
+                s."ID" AS current_id,
+                s."ID_PARENT"
+            FROM "Konstructor"."SPECIF22" s
+            WHERE s."ID_TEMA" = :temaId
+              AND s."ID_IZDELIE" = :izdelieId
+              AND s."ID_GROUPE" = :groupeId
+              AND s."ID_PARENT" IS NULL
+            
+            UNION ALL
+            
+            SELECT 
+                s."ID" AS original_id,
+                s."ID" AS current_id,
+                s."ID_PARENT"
+            FROM "Konstructor"."SPECIF22" s
+            INNER JOIN spec_tree st ON s."ID_PARENT" = st.current_id
+            WHERE s."ID_TEMA" = :temaId
+              AND s."ID_IZDELIE" = :izdelieId
+              AND s."ID_GROUPE" = :groupeId
+        )
+        SELECT DISTINCT st.original_id AS specif_id
+        FROM spec_tree st
+        """, nativeQuery = true)
+    List<Integer> findAllSpecifIdsInTreeNoLink(
+            @Param("temaId") Integer temaId,
+            @Param("izdelieId") Integer izdelieId,
+            @Param("groupeId") Integer groupeId
+    );
+
+    @Query(value = """
+        SELECT DISTINCT
+            sl."ID" AS sl_zap_id,
+            sl."OBOZN" AS sl_zap_obozn,
+            sl."NAIM_SL_ZAP" AS sl_zap_naim,
+            sl."FLAG_STATUS" AS sl_zap_status,
+            sl."SOST_SOGL_ID" AS sost_sogl_id,
+            ssz."ID_SPECIF" AS specif_ids_raw,
+            iz."ID_IZD" AS izdelie_id,
+            izd."NAIM_IZD" AS izdelie_name,
+            iz."ID" AS izdel_sl_zap_id
+        FROM "Konstructor"."SBORKI_SL_ZAP" ssz
+        INNER JOIN "Konstructor"."IZDEL_SL_ZAP" iz 
+            ON ssz."ID_IZDEL_SL_ZAP" = iz."ID"
+        INNER JOIN "Konstructor"."SL_ZAPISKA" sl 
+            ON iz."ID_SL_ZAP" = sl."ID"
+        LEFT JOIN "Konstructor"."IZDELIE" izd 
+            ON iz."ID_IZD" = izd."ID"
+        WHERE EXISTS (
+            SELECT 1 
+            FROM unnest(string_to_array(ssz."ID_SPECIF", ',')) AS spec_id
+            WHERE spec_id = ANY(CAST(:specifIds AS text[]))
+        )
+        ORDER BY sl."OBOZN"
+        """, nativeQuery = true)
+    List<Object[]> findSlZapBySpecifIds(@Param("specifIds") String[] specifIds);
+
+    @Query(value = """
+        SELECT 
+            CASE 
+                WHEN s."SOST_SOGL_ID" IS NOT NULL 
+                 AND ss."DATE_APPROVED" IS NOT NULL 
+                THEN true
+                ELSE false
+            END AS is_agreed,
+            ss."DATE_APPROVED" AS agreed_date
+        FROM "Konstructor"."SL_ZAPISKA" s
+        LEFT JOIN "Konstructor"."STATE_SOGLAS" ss ON s."SOST_SOGL_ID" = ss."ID"
+        WHERE s."ID" = :slZapiskaId
+        """, nativeQuery = true)
+    List<Object[]> findAgreedStatus(@Param("slZapiskaId") Integer slZapiskaId);
+
+    // ========================================================================
+    // МЕТОДЫ ДЛЯ ПРЕДПРОСМОТРА (С LINK)
+    // ========================================================================
+
     @Query(value = """
         WITH RECURSIVE assembly_hierarchy AS (
-            -- Базовый уровень: корневая спецификация
             SELECT 
                 s."ID" AS specif_id,
                 CAST(NULL AS INTEGER) AS parent_id,
@@ -107,14 +164,14 @@ public interface SlZapiskaRepository extends JpaRepository<SlZapiskaEntity, Inte
                 CAST(s."ID" AS VARCHAR(1000)) AS path_ids,
                 CAST(NULL AS INTEGER) AS structure_id,
                 CAST(izd."NAIM_IZD" AS INTEGER) AS izdelie_number,
-                izd."ID" AS izdelie_id
+                izd."ID" AS izdelie_id,
+                3 AS id_division
             FROM "Konstructor"."SPECIF22" s
             LEFT JOIN "Konstructor"."IZDELIE" izd ON s."ID_IZDELIE" = izd."ID"
             WHERE s."ID" = :specifId
             
             UNION ALL
             
-            -- Рекурсивный уровень: дети с учётом LINK_IMPLEMETATION
             SELECT 
                 CASE 
                     WHEN child."LINK_IMPLEMETATION" IS NOT NULL 
@@ -152,7 +209,8 @@ public interface SlZapiskaRepository extends JpaRepository<SlZapiskaEntity, Inte
                 AS VARCHAR(1000)) AS path_ids,
                 st."ID" AS structure_id,
                 CAST(izd."NAIM_IZD" AS INTEGER) AS izdelie_number,
-                izd."ID" AS izdelie_id
+                izd."ID" AS izdelie_id,
+                st."ID_DIVISION" AS id_division
             FROM assembly_hierarchy parent
             INNER JOIN "Konstructor"."STRUCTURE_SPECIF" st 
                 ON st."ID_SPECIF" = parent.specif_id 
@@ -186,18 +244,33 @@ public interface SlZapiskaRepository extends JpaRepository<SlZapiskaEntity, Inte
             full_path,
             structure_id,
             izdelie_number,
-            izdelie_id
+            izdelie_id,
+            id_division
         FROM assembly_hierarchy
         ORDER BY full_path
         """, nativeQuery = true)
     List<Object[]> findAssemblyHierarchy(@Param("specifId") Integer specifId);
 
-    /**
-     * ПОЛУЧИТЬ СЕРИИ ДЛЯ ЭЛЕМЕНТА СТРУКТУРЫ
-     *
-     * @param structureId ID из STRUCTURE_SPECIF
-     * @return список серий
-     */
+    @Query(value = """
+        SELECT 
+            st."ID",
+            st."ID_SPECIF",
+            st."ID_DIVISION",
+            st."OBOZN",
+            st."NAIM",
+            st."QUANTITY",
+            COALESCE(st."RMASSA", 0) AS RMASSA,
+            st."MATERIAL",
+            st."POS",
+            st."FORMAT",
+            st."ZONE"
+        FROM "Konstructor"."STRUCTURE_SPECIF" st
+        WHERE st."ID_SPECIF" = :specifId
+          AND st."ID_DIVISION" IN (4, 5, 6, 7)
+        ORDER BY st."ID_DIVISION", st."POS", st."OBOZN"
+        """, nativeQuery = true)
+    List<Object[]> findStructureContent(@Param("specifId") Integer specifId);
+
     @Query(value = """
         SELECT 
             "MINI",

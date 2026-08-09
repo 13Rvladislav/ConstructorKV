@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 Комплектовочные ведомости</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #4fc3f7;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        h1 .badge {
+            font-size: 12px;
+            background: #4fc3f7;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-weight: normal;
+        }
+
+        .params {
+            background: #e3f2fd;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+        .params .label {
+            font-weight: bold;
+            color: #0d47a1;
+        }
+        .params .value {
+            color: #333;
+        }
+
+        .stats {
+            background: #e8eaf6;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+        .stats .count {
+            font-weight: bold;
+            color: #1a237e;
+        }
+        .stats .label {
+            color: #555;
+        }
+
+        .controls {
+            margin: 10px 0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            padding: 7px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-back {
+            background: #78909c;
+            color: white;
+        }
+        .btn-refresh {
+            background: #66bb6a;
+            color: white;
+        }
+        .btn-form {
+            background: #ffb74d;
+            color: #333;
+        }
+        .btn-form:hover:not(:disabled) {
+            background: #ffa726;
+        }
+        .btn-reform {
+            background: #4fc3f7;
+            color: white;
+        }
+        .btn-reform:hover:not(:disabled) {
+            background: #29b6f6;
+        }
+        .btn-annul {
+            background: #ef5350;
+            color: white;
+        }
+        .btn-annul:hover:not(:disabled) {
+            background: #d32f2f;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+            font-size: 16px;
+        }
+        .loading .spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #4fc3f7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 10px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+            margin: 10px 0;
+            border-left: 4px solid #ef5350;
+        }
+
+        .table-container {
+            margin: 15px 0;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table thead {
+            background: #e8eaf6;
+        }
+        table th {
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #1a237e;
+            border-bottom: 2px solid #c5cae9;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+        table tr:hover td {
+            background: #f5f5f5;
+        }
+        table tr.selected td {
+            background: #e3f2fd !important;
+            border-left: 3px solid #1a237e;
+        }
+        table tr.selected:hover td {
+            background: #bbdefb !important;
+        }
+
+        .col-number {
+            width: 50px;
+            text-align: center;
+        }
+        .col-slzap {
+            min-width: 160px;
+        }
+        .col-kv {
+            min-width: 180px;
+        }
+        .col-parent {
+            min-width: 160px;
+        }
+        .col-date {
+            min-width: 110px;
+        }
+        .col-status {
+            min-width: 120px;
+        }
+
+        .status-badge {
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .status-badge.created {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+        .status-badge.in-progress {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .status-badge.approved {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+        .status-badge.archived {
+            background: #f5f5f5;
+            color: #616161;
+        }
+        .status-badge.not-created {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status-badge.not-agreed {
+            background: #fce4ec;
+            color: #880e4f;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .selected-info {
+            padding: 8px 15px;
+            background: #e8eaf6;
+            border-radius: 5px;
+            margin: 5px 0 10px 0;
+            font-size: 13px;
+            color: #333;
+            display: none;
+        }
+        .selected-info strong {
+            color: #1a237e;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            table {
+                font-size: 12px;
+            }
+            table th,
+            table td {
+                padding: 6px 8px;
+            }
+            .params {
+                flex-direction: column;
+                gap: 5px;
+            }
+            .stats {
+                flex-direction: column;
+                gap: 5px;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            .controls .btn {
+                width: 100%;
+                text-align: center;
+            }
+            .col-date,
+            .col-parent {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        📋 Комплектовочные ведомости
+        <span class="badge">Сводная таблица</span>
+    </h1>
+
+    <div class="params" id="paramsPanel">
+        <span><span class="label">Тема:</span> <span class="value" id="temaName">—</span></span>
+        <span><span class="label">Изделие:</span> <span class="value" id="izdelieName">—</span></span>
+        <span><span class="label">Группа:</span> <span class="value" id="groupeName">—</span></span>
+        <span><span class="label">Корневая спецификация:</span> <span class="value" id="rootSpecif">—</span></span>
+    </div>
+
+    <div class="stats" id="statsPanel">
+        <span><span class="label">📄 Всего строк:</span> <span class="count" id="totalRows">0</span></span>
+        <span><span class="label">✅ Согласованных СЗ:</span> <span class="count" id="agreedCount" style="color:#4caf50;">0</span></span>
+        <span><span class="label">❌ Не согласованных СЗ:</span> <span class="count" id="notAgreedCount" style="color:#ef5350;">0</span></span>
+        <span id="statusText" style="color: #ffb74d;">⏳ Загрузка...</span>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-back" onclick="goBack()">🔙 Назад к дереву</button>
+        <button class="btn btn-refresh" onclick="loadTable()">🔄 Обновить</button>
+        <button class="btn btn-form" id="btnFormKV" disabled onclick="openPreviewFromSelected()">
+            📄 Сформировать КВ
+        </button>
+        <button class="btn btn-reform" id="btnReformKV" disabled onclick="reformKv()">
+            🔄 Переформировать КВ
+        </button>
+        <button class="btn btn-annul" id="btnAnnulKV" disabled onclick="annulKv()">
+            🗑️ Аннулировать КВ
+        </button>
+    </div>
+
+    <div class="selected-info" id="selectedInfo">
+        Выбрана: <strong id="selectedSlZap">—</strong>
+        <span id="selectedStatus" style="margin-left:15px;color:#666;"></span>
+    </div>
+
+    <div id="errorMsg" class="error"></div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div>⏳ Загрузка таблицы КВ...</div>
+    </div>
+
+    <div id="tableContainer" class="table-container" style="display:none;">
+        <table>
+            <thead>
+            <tr>
+                <th class="col-number">№</th>
+                <th class="col-slzap">Служебная записка</th>
+                <th class="col-kv">Комплектовочная ведомость</th>
+                <th class="col-parent">Декомпозиция</th>
+                <th class="col-date">Дата СЗ</th>
+                <th class="col-status">Статус</th>
+            </tr>
+            </thead>
+            <tbody id="tableBody">
+            <!-- Строки рендерятся через JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="emptyMessage" style="display:none; text-align:center; padding:40px; color:#999; font-size:16px;">
+        📄 Нет данных для отображения
+        <br><span style="font-size:13px; color:#bbb;">Попробуйте выбрать другую группу</span>
+    </div>
+
+    <div class="footer">Конструктор КВ API &copy; 2026</div>
+</div>
+
+<script>
+    // ========================================================================
+    // ПАРАМЕТРЫ ИЗ URL
+    // ========================================================================
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const temaId = urlParams.get('temaId');
+    const izdelieId = urlParams.get('izdelieId');
+    const groupeId = urlParams.get('groupeId');
+
+    // ========================================================================
+    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+    // ========================================================================
+
+    let rows = [];
+    let selectedRow = null;
+
+    // ========================================================================
+    // ЗАГРУЗКА ТАБЛИЦЫ
+    // ========================================================================
+
+    async function loadTable() {
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('tableContainer');
+        const empty = document.getElementById('emptyMessage');
+        const error = document.getElementById('errorMsg');
+        const status = document.getElementById('statusText');
+
+        if (!temaId || !izdelieId || !groupeId) {
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: не указаны параметры temaId, izdelieId, groupeId';
+            loading.style.display = 'none';
+            return;
+        }
+
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        empty.style.display = 'none';
+        error.style.display = 'none';
+        status.textContent = '⏳ Загрузка...';
+        status.style.color = '#ffb74d';
+
+        try {
+            const url = `/api/kvtable?temaId=${temaId}&izdelieId=${izdelieId}&groupeId=${groupeId}`;
+            const response = await fetch(url);
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || 'Ошибка загрузки');
+            }
+
+            const data = result.data;
+            rows = data?.rows || [];
+
+            if (data.groupInfo) {
+                document.getElementById('temaName').textContent = data.groupInfo.temaName || temaId;
+                document.getElementById('izdelieName').textContent = data.groupInfo.izdelieName || izdelieId;
+                document.getElementById('groupeName').textContent = data.groupInfo.groupeName || groupeId;
+                const rootInfo = data.groupInfo.rootSpecifObozn ?
+                    data.groupInfo.rootSpecifObozn + ' (ID: ' + data.groupInfo.rootSpecifId + ')' :
+                    data.groupInfo.rootSpecifId || '—';
+                document.getElementById('rootSpecif').textContent = rootInfo;
+            }
+
+            document.getElementById('totalRows').textContent = rows.length || 0;
+
+            let agreed = 0;
+            let notAgreed = 0;
+            for (const row of rows) {
+                if (row.isSlZapAgreed === true) agreed++;
+                else if (row.isSlZapAgreed === false) notAgreed++;
+            }
+            document.getElementById('agreedCount').textContent = agreed;
+            document.getElementById('notAgreedCount').textContent = notAgreed;
+
+            if (rows.length === 0) {
+                loading.style.display = 'none';
+                empty.style.display = 'block';
+                status.textContent = '⚠️ Нет данных';
+                status.style.color = '#ffb74d';
+                return;
+            }
+
+            renderTable(rows);
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            status.textContent = '✅ Загружено (' + rows.length + ' строк)';
+            status.style.color = '#66bb6a';
+
+        } catch (err) {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            error.textContent = '❌ Ошибка: ' + err.message;
+            status.textContent = '❌ Ошибка';
+            status.style.color = '#ef5350';
+            console.error(err);
+        }
+    }
+
+    // ========================================================================
+    // РЕНДЕРИНГ ТАБЛИЦЫ
+    // ========================================================================
+
+    function renderTable(rows) {
+        const tbody = document.getElementById('tableBody');
+        let html = '';
+
+        for (const row of rows) {
+            const statusClass = getStatusClass(row.status);
+            const statusDisplay = row.status || '—';
+
+            const slZapDisplay = row.slZapiskaObozn || 'Без обозн.';
+
+            let kvDisplay = '—';
+            let kvTooltip = '';
+            if (row.komplektovkaDesign) {
+                kvDisplay = row.komplektovkaDesign;
+                if (row.komplektovkaId) {
+                    kvTooltip = ` title="ID: ${row.komplektovkaId}"`;
+                }
+            }
+
+            let parentDisplay = '—';
+            if (row.parentKvDesign) {
+                parentDisplay = row.parentKvDesign;
+            }
+
+            const dateDisplay = row.slZapAgreedDate || '—';
+
+            const isSelected = selectedRow && selectedRow.slZapiskaId === row.slZapiskaId && selectedRow.specifId === row.specifId;
+            const selectClass = isSelected ? 'selected' : '';
+
+            html += `
+                <tr class="${selectClass}"
+                    onclick="selectRow(${row.slZapiskaId}, ${row.specifId || 'null'})"
+                    data-slzap-id="${row.slZapiskaId}"
+                    data-specif-id="${row.specifId || ''}"
+                    data-is-agreed="${row.isSlZapAgreed}"
+                    data-has-kv="${row.komplektovkaId ? 'true' : 'false'}">
+                    <td class="col-number">${row.number || '—'}</td>
+                    <td class="col-slzap">
+                        <strong>${slZapDisplay}</strong>
+                    </td>
+                    <td class="col-kv"${kvTooltip}>
+                        <strong>${kvDisplay}</strong>
+                    </td>
+                    <td class="col-parent">
+                        <strong>${parentDisplay}</strong>
+                    </td>
+                    <td class="col-date">${dateDisplay}</td>
+                    <td class="col-status">
+                        <span class="status-badge ${statusClass}">${statusDisplay}</span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+    }
+
+    // ========================================================================
+    // ВЫБОР СТРОКИ
+    // ========================================================================
+
+    function selectRow(slZapId, specifId) {
+        const row = rows.find(r => r.slZapiskaId === slZapId && r.specifId === specifId);
+        if (!row) return;
+
+        if (selectedRow && selectedRow.slZapiskaId === slZapId && selectedRow.specifId === specifId) {
+            selectedRow = null;
+            document.getElementById('btnFormKV').disabled = true;
+            document.getElementById('btnReformKV').disabled = true;
+            document.getElementById('btnAnnulKV').disabled = true;
+            document.getElementById('selectedInfo').style.display = 'none';
+            renderTable(rows);
+            return;
+        }
+
+        selectedRow = row;
+
+        document.getElementById('selectedSlZap').textContent = row.slZapiskaObozn;
+        document.getElementById('selectedStatus').textContent = row.status || '';
+        document.getElementById('selectedInfo').style.display = 'block';
+
+        // Кнопка "Сформировать" — только если КВ нет и СЗ согласована
+        const canForm = row.isSlZapAgreed === true && !row.komplektovkaId && row.specifId;
+        document.getElementById('btnFormKV').disabled = !canForm;
+
+        // Кнопка "Переформировать" — если КВ есть (заглушка, всегда disabled)
+        const canReform = row.komplektovkaId !== null;
+        document.getElementById('btnReformKV').disabled = true; // TODO: реализовать позже
+
+        // Кнопка "Аннулировать" — если КВ есть (заглушка, всегда disabled)
+        const canAnnul = row.komplektovkaId !== null;
+        document.getElementById('btnAnnulKV').disabled = true; // TODO: реализовать позже
+
+        renderTable(rows);
+    }
+
+    // ========================================================================
+    // ОТКРЫТИЕ ПРЕДПРОСМОТРА
+    // ========================================================================
+
+    function openPreviewFromSelected() {
+        if (!selectedRow) {
+            alert('Пожалуйста, выберите строку');
+            return;
+        }
+
+        if (!selectedRow.isSlZapAgreed) {
+            alert('❌ Служебная записка не согласована!');
+            return;
+        }
+
+        if (selectedRow.komplektovkaId) {
+            alert('❌ КВ уже создана!');
+            return;
+        }
+
+        const specifId = selectedRow.specifId;
+        const slZapId = selectedRow.slZapiskaId;
+
+        if (!specifId || !slZapId) {
+            alert('❌ Ошибка: недостаточно данных для формирования КВ');
+            return;
+        }
+
+        const previewUrl = `/preview.html?specifId=${specifId}&slZapId=${slZapId}`;
+        const previewWindow = window.open(
+            previewUrl,
+            '_blank',
+            'width=1100,height=800,scrollbars=yes,resizable=yes'
+        );
+
+        if (!previewWindow) {
+            alert('⚠️ Пожалуйста, разрешите всплывающие окна для этого сайта');
+        }
+    }
+
+    // ========================================================================
+    // ПЕРЕФОРМИРОВАНИЕ КВ (ЗАГЛУШКА)
+    // ========================================================================
+
+    function reformKv() {
+        if (!selectedRow) {
+            alert('Пожалуйста, выберите строку');
+            return;
+        }
+
+        if (!selectedRow.komplektovkaId) {
+            alert('❌ КВ не создана! Переформирование невозможно.');
+            return;
+        }
+
+        alert('🔄 Функция "Переформировать КВ" будет реализована позже.\n' +
+            'КВ ID: ' + selectedRow.komplektovkaId);
+    }
+
+    // ========================================================================
+    // АННУЛИРОВАНИЕ КВ (ЗАГЛУШКА)
+    // ========================================================================
+
+    function annulKv() {
+        if (!selectedRow) {
+            alert('Пожалуйста, выберите строку');
+            return;
+        }
+
+        if (!selectedRow.komplektovkaId) {
+            alert('❌ КВ не создана! Аннулирование невозможно.');
+            return;
+        }
+
+        if (!confirm('Вы уверены, что хотите аннулировать КВ "' +
+            selectedRow.komplektovkaDesign + '"?\nЭто действие нельзя отменить.')) {
+            return;
+        }
+
+        alert('🗑️ Функция "Аннулировать КВ" будет реализована позже.\n' +
+            'КВ ID: ' + selectedRow.komplektovkaId);
+    }
+
+    // ========================================================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ========================================================================
+
+    function getStatusClass(status) {
+        if (!status) return 'not-created';
+        if (status.includes('Создана')) return 'not-created';
+        if (status.includes('В работе') || status.includes('🔄')) return 'in-progress';
+        if (status.includes('Согласована') || status.includes('✅')) return 'approved';
+        if (status.includes('Архив') || status.includes('🗑️')) return 'archived';
+        if (status.includes('не согласована') || status.includes('⏳')) return 'not-agreed';
+        return 'not-created';
+    }
+
+    function goBack() {
+        window.location.href = '/tree.html';
+    }
+
+    // ========================================================================
+    // АВТОЗАГРУЗКА
+    // ========================================================================
+
+    document.addEventListener('DOMContentLoaded', loadTable);
+</script>
+
+</body>
+</html>

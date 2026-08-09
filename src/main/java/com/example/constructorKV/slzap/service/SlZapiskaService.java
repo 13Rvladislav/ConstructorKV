@@ -1,4 +1,3 @@
-// src/main/java/com/example/constructorKV/slzap/service/SlZapiskaService.java
 package com.example.constructorKV.slzap.service;
 
 import com.example.constructorKV.common.exception.BusinessException;
@@ -25,7 +24,7 @@ public class SlZapiskaService {
     private final SpecifRepository specifRepository;
 
     // ========================================================================
-    // ПОЛУЧЕНИЕ СЛУЖЕБНЫХ ЗАПИСОК ПО СПЕЦИФИКАЦИИ
+    // СУЩЕСТВУЮЩИЕ МЕТОДЫ
     // ========================================================================
 
     public List<SlZapiskaDto> getSlZapBySpecifId(Integer specifId) {
@@ -80,10 +79,6 @@ public class SlZapiskaService {
         }
     }
 
-    // ========================================================================
-    // ПОЛУЧЕНИЕ ВСЕХ СЛУЖЕБНЫХ ЗАПИСОК
-    // ========================================================================
-
     public List<SlZapiskaDto> getAllSlZap() {
         log.info("🔍 Получение всех служебных записок");
 
@@ -118,10 +113,6 @@ public class SlZapiskaService {
         }
     }
 
-    // ========================================================================
-    // ПОЛУЧЕНИЕ СЛУЖЕБНОЙ ЗАПИСКИ ПО ID
-    // ========================================================================
-
     public SlZapiskaDto getSlZapById(Integer id) {
         log.info("🔍 Поиск служебной записки по ID: {}", id);
 
@@ -144,20 +135,12 @@ public class SlZapiskaService {
                 .orElseThrow(() -> new BusinessException("Служебная записка с ID " + id + " не найдена"));
     }
 
-    // ========================================================================
-    // ПРОВЕРКА СОГЛАСОВАНИЯ
-    // ========================================================================
-
     public boolean isSlZapiskaAgreed(Integer slZapiskaId) {
         if (slZapiskaId == null) {
             return false;
         }
         return slZapiskaRepository.isSlZapiskaAgreed(slZapiskaId);
     }
-
-    // ========================================================================
-    // ПОЛУЧЕНИЕ СБОРОК ДЛЯ СЛУЖЕБНОЙ ЗАПИСКИ
-    // ========================================================================
 
     public List<AssemblyForKVDto> getAssembliesForSlZap(Integer slZapiskaId) {
         log.info("🔍 Получение сборок для служебной записки {}", slZapiskaId);
@@ -177,7 +160,6 @@ public class SlZapiskaService {
             return new ArrayList<>();
         }
 
-        // Получаем список уже существующих КВ для этой СЗ
         List<Integer> existingKvSpecifIds = komplektovkaRepository.findExistingSpecifIdsBySlZap(slZapiskaId);
 
         List<AssemblyForKVDto> assemblies = new ArrayList<>();
@@ -206,16 +188,6 @@ public class SlZapiskaService {
     // ПОЛУЧЕНИЕ ИЕРАРХИИ СБОРОК ДЛЯ ПРЕДПРОСМОТРА
     // ========================================================================
 
-    /**
-     * ПОЛУЧИТЬ ИЕРАРХИЮ СБОРОК ДЛЯ СПЕЦИФИКАЦИИ
-     *
-     * Используется для предпросмотра структуры сборок перед формированием КВ.
-     * Возвращает дерево сборок с учётом LINK_IMPLEMETATION.
-     * Каждый узел помечен флагом fitsSeries (подходит ли под серии).
-     *
-     * @param specifId ID корневой спецификации
-     * @return дерево сборок
-     */
     public List<AssemblyHierarchyDto> getAssemblyHierarchy(Integer specifId) {
         log.info("🔍 Получение иерархии сборок для спецификации {}", specifId);
 
@@ -238,6 +210,8 @@ public class SlZapiskaService {
         Map<Integer, AssemblyHierarchyDto> nodeMap = new LinkedHashMap<>();
         List<AssemblyHierarchyDto> roots = new ArrayList<>();
 
+        Integer productNumber = null;
+
         for (Object[] row : result) {
             Integer id = (Integer) row[0];
             Integer parentId = (Integer) row[1];
@@ -249,16 +223,23 @@ public class SlZapiskaService {
             Integer structureId = (Integer) row[8];
             Integer izdelieNumber = (Integer) row[9];
             Integer izdelieId = (Integer) row[10];
+            Integer idDivision = (Integer) row[11];
+
+            if (izdelieNumber != null) {
+                productNumber = izdelieNumber;
+            }
 
             AssemblyHierarchyDto node = AssemblyHierarchyDto.builder()
                     .id(id)
+                    .idSpecif(id)
+                    .parentId(parentId)
                     .obozn(obozn != null ? obozn : "Без обозн.")
                     .naim(naim != null ? naim : "Без названия")
                     .quantity(quantity != null ? quantity : 1)
                     .massa(massa != null ? massa : 0.0)
-                    .parentId(parentId)
                     .level(level != null ? level : 0)
                     .structureId(structureId)
+                    .idDivision(idDivision)
                     .izdelieNumber(izdelieNumber)
                     .izdelieId(izdelieId)
                     .fitsSeries(null)
@@ -285,7 +266,7 @@ public class SlZapiskaService {
             }
         }
 
-        // Загружаем серии
+        // Загружаем серии для всех узлов (сборок)
         loadSeriesForHierarchy(roots);
 
         // Сортируем детей
@@ -293,8 +274,11 @@ public class SlZapiskaService {
             sortChildren(root);
         }
 
-        // Маркировка по сериям (с учётом родительских связей)
+        // Маркировка по сериям для сборок
         markBySeries(roots);
+
+        // ===== ЗАГРУЖАЕМ СОДЕРЖИМОЕ С ПРОВЕРКОЙ СЕРИЙ ДЛЯ КАЖДОГО ЭЛЕМЕНТА =====
+        loadContentForAssemblies(roots, productNumber);
 
         if (roots.isEmpty() && !nodeMap.isEmpty()) {
             AssemblyHierarchyDto root = nodeMap.values().stream()
@@ -310,56 +294,191 @@ public class SlZapiskaService {
         return roots;
     }
 
-    /**
-     * МАРКИРОВКА УЗЛОВ ПО СЕРИЯМ
-     *
-     * Важно: если родитель не прошёл по серийности,
-     * все его дети автоматически помечаются как неподходящие,
-     * даже если их собственные серии подходят.
-     */
-    private void markBySeries(List<AssemblyHierarchyDto> nodes) {
-        for (AssemblyHierarchyDto node : nodes) {
-            // Проверяем, подходит ли текущий узел по сериям
-            Integer productNumber = node.getIzdelieNumber();
-            boolean nodeFits = node.checkFitsSeries(productNumber);
+    // ========================================================================
+    // ЗАГРУЗКА СОДЕРЖИМОГО С ПРОВЕРКОЙ СЕРИЙ ДЛЯ КАЖДОГО ЭЛЕМЕНТА
+    // ========================================================================
 
-            // Если узел НЕ ПОДХОДИТ → все дети автоматически неподходящие
-            if (!nodeFits) {
-                markChildrenAsNonFitting(node);
-            } else {
-                // Если узел ПОДХОДИТ → проверяем детей независимо
-                if (node.getChildren() != null && !node.getChildren().isEmpty()) {
-                    markBySeries(node.getChildren());
+    private void loadContentForAssemblies(List<AssemblyHierarchyDto> hierarchy, Integer productNumber) {
+        if (hierarchy == null || hierarchy.isEmpty()) {
+            return;
+        }
+
+        for (AssemblyHierarchyDto node : hierarchy) {
+            // Только для сборок, прошедших проверку по сериям
+            if (node.getIdDivision() != null && node.getIdDivision() == 3
+                    && node.getFitsSeries() != null && node.getFitsSeries()) {
+
+                List<Object[]> content = slZapiskaRepository.findStructureContent(node.getId());
+                if (content != null && !content.isEmpty()) {
+                    log.debug("📦 Загрузка содержимого для сборки {} ({} элементов)",
+                            node.getObozn(), content.size());
+
+                    for (Object[] row : content) {
+                        Integer id = (Integer) row[0];
+                        Integer idSpecif = (Integer) row[1];
+                        Integer idDivision = ((Short) row[2]).intValue();
+                        String obozn = (String) row[3];
+                        String naim = (String) row[4];
+                        Integer quantityFromStruct = (Integer) row[5];
+                        Double massaFromStruct = (Double) row[6];
+                        String material = (String) row[7];
+                        String pos = (String) row[8];
+                        String format = (String) row[9];
+                        String zone = (String) row[10];
+                        Integer structureId = id;
+
+                        // ============================================================
+                        // ШАГ 1: ЗАГРУЖАЕМ СЕРИИ
+                        // ============================================================
+                        List<Object[]> seriesData = null;
+                        try {
+                            seriesData = slZapiskaRepository.findSeriesByStructureId(structureId);
+                        } catch (Exception e) {
+                            log.warn("⚠️ Не удалось загрузить серии для структуры {}: {}", structureId, e.getMessage());
+                        }
+
+                        // ============================================================
+                        // ШАГ 2: ОПРЕДЕЛЯЕМ ЗНАЧЕНИЯ (по умолчанию из структуры)
+                        // ============================================================
+                        Integer finalQuantity = quantityFromStruct != null ? quantityFromStruct : 1;
+                        Double finalMassa = massaFromStruct != null ? massaFromStruct : 0.0;
+                        String fitReason = "Нет серий (действует на все)";
+                        boolean fits = true;
+
+                        // ============================================================
+                        // ШАГ 3: ЕСЛИ ЕСТЬ СЕРИИ — ПРОВЕРЯЕМ
+                        // ============================================================
+                        if (seriesData != null && !seriesData.isEmpty()) {
+                            boolean foundMatch = false;
+
+                            for (Object[] sRow : seriesData) {
+                                Integer mini = (Integer) sRow[0];
+                                Integer maxi = (Integer) sRow[1];
+                                Integer quantityFromSeries = (Integer) sRow[2];
+                                Double massaFromSeries = (Double) sRow[3];
+                                String dimensions = (String) sRow[4];
+
+                                if (productNumber != null && mini != null && maxi != null) {
+                                    if (productNumber >= mini && productNumber <= maxi) {
+                                        // ПОДХОДИТ — берем из серийности
+                                        if (quantityFromSeries != null) finalQuantity = quantityFromSeries;
+                                        if (massaFromSeries != null) finalMassa = massaFromSeries;
+                                        fitReason = "Подходит по сериям " + mini + "–" + maxi;
+                                        foundMatch = true;
+                                        fits = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!foundMatch) {
+                                fitReason = "Не подходит по сериям";
+                                fits = false;
+                            }
+                        }
+
+                        // ============================================================
+                        // ШАГ 4: СОЗДАЕМ УЗЕЛ (ВСЕГДА, ДАЖЕ ЕСЛИ НЕ ПОДХОДИТ)
+                        // ============================================================
+                        AssemblyHierarchyDto contentNode = AssemblyHierarchyDto.builder()
+                                .id(id)
+                                .idSpecif(idSpecif)
+                                .parentId(node.getId())
+                                .obozn(obozn != null ? obozn : "Без обозн.")
+                                .naim(naim != null ? naim : "Без названия")
+                                .quantity(finalQuantity)
+                                .massa(finalMassa)
+                                .idDivision(idDivision)
+                                .material(material != null ? material : "")
+                                .note(pos != null ? "Поз." + pos : "")
+                                .level(node.getLevel() != null ? node.getLevel() + 1 : 1)
+                                .idRootSpecif(node.getIdRootSpecif())
+                                .idOriginalStructure(id)
+                                .structureId(structureId)
+                                .izdelieNumber(productNumber)
+                                .fitsSeries(fits)           // ← true/false для отображения
+                                .fitReason(fitReason)       // ← причина для тултипа
+                                .series(new ArrayList<>())
+                                .children(new ArrayList<>())
+                                .build();
+
+                        // ============================================================
+                        // ШАГ 5: ДОБАВЛЯЕМ СЕРИИ В УЗЕЛ (для отображения)
+                        // ============================================================
+                        if (seriesData != null && !seriesData.isEmpty()) {
+                            for (Object[] sRow : seriesData) {
+                                Integer mini = (Integer) sRow[0];
+                                Integer maxi = (Integer) sRow[1];
+                                Integer sQuantity = (Integer) sRow[2];
+                                Double sMassa = (Double) sRow[3];
+                                String dimensions = (String) sRow[4];
+
+                                AssemblyHierarchyDto.SeriesInfo series = AssemblyHierarchyDto.SeriesInfo.builder()
+                                        .mini(mini)
+                                        .maxi(maxi)
+                                        .quantity(sQuantity)
+                                        .massa(sMassa)
+                                        .dimensions(dimensions)
+                                        .build();
+                                contentNode.addSeries(series);
+                            }
+                        }
+
+                        // ============================================================
+                        // ШАГ 6: ДОБАВЛЯЕМ УЗЕЛ В РОДИТЕЛЯ (ВСЕГДА, ДЛЯ ОТОБРАЖЕНИЯ)
+                        // ============================================================
+                        node.addChild(contentNode);
+
+                        log.debug("  {} {}: fits={}, reason={}, кол-во={}, масса={}",
+                                contentNode.getTypeName(),
+                                contentNode.getObozn(),
+                                contentNode.getFitsSeries(),
+                                contentNode.getFitReason(),
+                                contentNode.getQuantity(),
+                                contentNode.getMassa());
+                    }
+                }
+            }
+
+            if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                loadContentForAssemblies(node.getChildren(), productNumber);
+            }
+        }
+    }
+
+    /**
+     * ПРОВЕРКА СЕРИЙНОСТИ ДЛЯ ОДНОГО УЗЛА
+     */
+    private boolean checkNodeFitsSeries(AssemblyHierarchyDto node, Integer productNumber) {
+        if (productNumber == null) {
+            return true;
+        }
+
+        if (node.getSeries() == null || node.getSeries().isEmpty()) {
+            return true;
+        }
+
+        for (AssemblyHierarchyDto.SeriesInfo series : node.getSeries()) {
+            if (series.getMini() != null && series.getMaxi() != null) {
+                if (productNumber >= series.getMini() && productNumber <= series.getMaxi()) {
+                    return true;
                 }
             }
         }
+
+        return false;
     }
 
-    /**
-     * ПОМЕЧАЕТ ВСЕХ ДОЧЕРНИХ УЗЛОВ КАК НЕПОДХОДЯЩИЕ
-     * (рекурсивно по всему поддереву)
-     */
-    private void markChildrenAsNonFitting(AssemblyHierarchyDto node) {
-        if (node.getChildren() != null && !node.getChildren().isEmpty()) {
-            for (AssemblyHierarchyDto child : node.getChildren()) {
-                child.setFitsSeries(false);
-                child.setFitReason("Родительский узел не прошёл по серийности");
-                // Рекурсивно помечаем всех потомков
-                markChildrenAsNonFitting(child);
-            }
-        }
-    }
+    // ========================================================================
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    // ========================================================================
 
-    /**
-     * ЗАГРУЗИТЬ СЕРИИ ДЛЯ ВСЕХ ЭЛЕМЕНТОВ ИЕРАРХИИ
-     */
     private void loadSeriesForHierarchy(List<AssemblyHierarchyDto> hierarchy) {
         if (hierarchy == null || hierarchy.isEmpty()) {
             return;
         }
 
         for (AssemblyHierarchyDto node : hierarchy) {
-            // Загружаем серии для текущего узла
             if (node.getStructureId() != null) {
                 List<Object[]> seriesData = slZapiskaRepository.findSeriesByStructureId(node.getStructureId());
                 if (seriesData != null && !seriesData.isEmpty()) {
@@ -382,20 +501,42 @@ public class SlZapiskaService {
                 }
             }
 
-            // Рекурсивно обрабатываем детей
             if (node.getChildren() != null && !node.getChildren().isEmpty()) {
                 loadSeriesForHierarchy(node.getChildren());
             }
         }
     }
 
-    /**
-     * СОЗДАТЬ КОРНЕВОЙ УЗЕЛ (если нет детей)
-     */
+    private void markBySeries(List<AssemblyHierarchyDto> nodes) {
+        for (AssemblyHierarchyDto node : nodes) {
+            Integer productNumber = node.getIzdelieNumber();
+            boolean nodeFits = node.checkFitsSeries(productNumber);
+
+            if (!nodeFits) {
+                markChildrenAsNonFitting(node);
+            } else {
+                if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                    markBySeries(node.getChildren());
+                }
+            }
+        }
+    }
+
+    private void markChildrenAsNonFitting(AssemblyHierarchyDto node) {
+        if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+            for (AssemblyHierarchyDto child : node.getChildren()) {
+                child.setFitsSeries(false);
+                child.setFitReason("Родительский узел не прошёл по серийности");
+                markChildrenAsNonFitting(child);
+            }
+        }
+    }
+
     private AssemblyHierarchyDto createRootNode(Integer specifId) {
         return specifRepository.findById(specifId)
                 .map(s -> AssemblyHierarchyDto.builder()
                         .id(s.getId())
+                        .idSpecif(s.getId())
                         .obozn(s.getObozn() != null ? s.getObozn() : "Без обозн.")
                         .naim(s.getNaim() != null ? s.getNaim() : "Без названия")
                         .quantity(1)
@@ -403,6 +544,7 @@ public class SlZapiskaService {
                         .parentId(null)
                         .level(0)
                         .structureId(null)
+                        .idDivision(3)
                         .izdelieNumber(null)
                         .izdelieId(null)
                         .fitsSeries(true)
@@ -413,9 +555,6 @@ public class SlZapiskaService {
                 .orElseThrow(() -> new BusinessException("Спецификация с ID " + specifId + " не найдена"));
     }
 
-    /**
-     * РЕКУРСИВНАЯ СОРТИРОВКА ДЕТЕЙ
-     */
     private void sortChildren(AssemblyHierarchyDto node) {
         if (node.getChildren() != null && !node.getChildren().isEmpty()) {
             node.getChildren().sort(Comparator.comparing(
@@ -428,9 +567,6 @@ public class SlZapiskaService {
         }
     }
 
-    /**
-     * ПОДСЧЁТ ВСЕХ УЗЛОВ В ИЕРАРХИИ
-     */
     private int countAllNodes(List<AssemblyHierarchyDto> nodes) {
         int count = 0;
         for (AssemblyHierarchyDto node : nodes) {
@@ -441,10 +577,6 @@ public class SlZapiskaService {
         }
         return count;
     }
-
-    // ========================================================================
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // ========================================================================
 
     private String getStatusText(Short flagStatus) {
         if (flagStatus == null) {

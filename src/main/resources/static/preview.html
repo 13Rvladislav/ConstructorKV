@@ -1,10 +1,9 @@
-<!-- src/main/resources/static/preview.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📐 Предпросмотр сборок</title>
+    <title>📐 Предпросмотр структуры</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -15,7 +14,7 @@
             min-height: 100vh;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
@@ -113,7 +112,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* ===== ДЕРЕВО ===== */
+        /* ===== ТАБЛИЧНО-ДРЕВОВИДНАЯ СТРУКТУРА ===== */
         .tree-container {
             margin: 10px 0;
             padding: 0;
@@ -124,206 +123,144 @@
             background: #fafafa;
         }
         .tree {
-            padding: 10px 15px;
+            padding: 0;
         }
-        .tree ul {
-            list-style: none;
-            padding-left: 28px;
-            margin: 2px 0;
+        .tree table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
         }
-        .tree li {
-            padding: 1px 0;
-            list-style: none;
+        .tree table th {
+            background: #e8eaf6;
+            color: #1a237e;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #c5cae9;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 12px;
         }
-
-        /* ===== УЗЕЛ СБОРКИ ===== */
-        .node-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 12px;
-            border-radius: 6px;
-            background: #f5f5f5;
-            border-left: 4px solid #7b1fa2;
-            margin: 2px 0;
-            transition: background 0.2s;
-            flex-wrap: wrap;
-            min-height: 32px;
+        .tree table td {
+            padding: 4px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
         }
-        .node-item:hover {
+        .tree table tr:hover td {
             background: #e8e0f0;
         }
 
-        /* Зелёный — подходит */
-        .node-item.fit-true {
-            border-left-color: #4caf50;
-            background: #e8f5e9;
-        }
-        .node-item.fit-true:hover {
-            background: #c8e6c9;
+        /* ===== ВИЗУАЛЬНЫЕ ОТСТУПЫ И ЛИНИИ ===== */
+        .tree-cell {
+            display: flex;
+            align-items: center;
+            gap: 2px;
         }
 
-        /* Красный — не подходит */
-        .node-item.fit-false {
-            border-left-color: #ef5350;
-            background: #ffebee;
-        }
-        .node-item.fit-false:hover {
-            background: #ffcdd2;
-        }
-
-        .node-item.level-0.fit-true {
-            border-left-color: #1a237e;
-            background: #e8eaf6;
-        }
-        .node-item.level-0.fit-false {
-            border-left-color: #c62828;
-            background: #ffebee;
-        }
-
-        .node-item .icon { font-size: 15px; flex-shrink: 0; }
-        .node-item .badge {
-            font-size: 8px;
-            padding: 1px 8px;
-            border-radius: 8px;
-            font-weight: bold;
+        /* Отступы для уровней вложенности */
+        .level-indent {
+            display: inline-block;
             flex-shrink: 0;
         }
-        .node-item .badge.root {
-            background: #1a237e;
-            color: white;
+        .level-0 .level-indent { width: 0px; }
+        .level-1 .level-indent { width: 20px; }
+        .level-2 .level-indent { width: 40px; }
+        .level-3 .level-indent { width: 60px; }
+        .level-4 .level-indent { width: 80px; }
+        .level-5 .level-indent { width: 100px; }
+        .level-6 .level-indent { width: 120px; }
+        .level-7 .level-indent { width: 140px; }
+
+        /* Вертикальные линии */
+        .tree-line {
+            display: inline-block;
+            width: 16px;
+            height: 1px;
+            border-top: 1px solid #bdbdbd;
+            margin-right: 4px;
+            flex-shrink: 0;
         }
-        .node-item .badge.child {
-            background: #4fc3f7;
-            color: #1a237e;
-        }
-        .node-item .badge.has-series {
-            background: #ffb74d;
-            color: #333;
-        }
-        .node-item .badge.fit-badge {
-            font-size: 9px;
-            padding: 1px 10px;
-        }
-        .node-item .badge.fit-badge.fit-true {
-            background: #4caf50;
-            color: white;
-        }
-        .node-item .badge.fit-badge.fit-false {
-            background: #ef5350;
-            color: white;
-        }
-        .node-item .obozn {
-            font-weight: 600;
-            color: #1a237e;
-            font-size: 13px;
-        }
-        .node-item .naim {
-            color: #555;
+
+        /* Стрелка для разворачивания */
+        .toggle-btn {
+            cursor: pointer;
+            user-select: none;
+            display: inline-block;
+            width: 18px;
+            text-align: center;
+            color: #78909c;
             font-size: 12px;
-            margin-left: 2px;
+            transition: transform 0.2s;
+            flex-shrink: 0;
         }
-        .node-item .izd-info {
-            color: #0d47a1;
-            font-size: 11px;
-            background: #e3f2fd;
-            padding: 1px 8px;
-            border-radius: 10px;
-            font-weight: 500;
+        .toggle-btn.expanded {
+            transform: rotate(90deg);
         }
-        .node-item .fit-reason {
+        .toggle-btn.leaf {
+            color: #e0e0e0;
+            cursor: default;
+        }
+
+        /* Иконка типа элемента */
+        .type-icon { font-size: 16px; margin-right: 4px; flex-shrink: 0; }
+
+        /* Бейдж типа (СБ, ДЕТ, СТ, ПОК, МАТ) */
+        .type-badge {
             font-size: 10px;
-            color: #666;
-            font-style: italic;
-            margin-left: 4px;
-        }
-        .node-item .meta {
-            color: #999;
-            font-size: 11px;
-            margin-left: auto;
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-weight: bold;
             white-space: nowrap;
-            display: flex;
-            gap: 8px;
-            align-items: center;
+            display: inline-block;
+            min-width: 36px;
+            text-align: center;
         }
-        .node-item .meta .qty {
-            background: #e0e0e0;
-            padding: 0 6px;
-            border-radius: 4px;
+        .type-badge.division-3 { background: #f3e5f5; color: #4a148c; }  /* СБ */
+        .type-badge.division-4 { background: #e8f5e9; color: #1b5e20; }  /* ДЕТ */
+        .type-badge.division-5 { background: #fff3e0; color: #e65100; }  /* СТ */
+        .type-badge.division-6 { background: #fce4ec; color: #880e4f; }  /* ПОК */
+        .type-badge.division-7 { background: #e0f7fa; color: #00695c; }  /* МАТ */
+        .type-badge.division-2 { background: #e3f2fd; color: #0d47a1; }  /* ДОК */
+
+        /* Статус соответствия */
+        .status-badge {
+            font-size: 10px;
+            padding: 1px 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .status-badge.fit-true { background: #4caf50; color: white; }
+        .status-badge.fit-false { background: #ef5350; color: white; }
+        .status-badge.fit-null { background: #e0e0e0; color: #666; }
+
+        /* Подсветка строки */
+        .row-fit-true { background: #e8f5e9; }
+        .row-fit-false { background: #ffebee; }
+        .row-fit-null { background: #fafafa; }
+
+        /* Серии */
+        .series-cell {
+            font-size: 11px;
             color: #555;
         }
-        .node-item .level-badge {
-            font-size: 8px;
-            padding: 1px 6px;
-            border-radius: 8px;
-            background: #e0e0e0;
-            color: #666;
-        }
-
-        /* ===== СЕРИИ ===== */
-        .series-container {
-            padding-left: 40px;
-            margin: 2px 0;
-            display: none;
-        }
-        .series-container.visible {
-            display: block;
-        }
-
         .series-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 2px 12px 2px 20px;
-            font-size: 12px;
-            color: #555;
-            border-left: 3px solid #ffb74d;
+            display: inline-block;
+            padding: 1px 8px;
+            margin: 1px 2px;
+            border-radius: 10px;
             background: #fff8e1;
-            margin: 1px 0;
-            border-radius: 3px;
-            flex-wrap: wrap;
+            border: 1px solid #ffb74d;
+            font-size: 10px;
         }
-        /* Серия подходит */
         .series-item.series-fits {
-            border-left-color: #4caf50;
+            border-color: #4caf50;
             background: #e8f5e9;
         }
-        /* Серия не подходит */
         .series-item.series-not-fits {
-            border-left-color: #ef5350;
+            border-color: #ef5350;
             background: #ffebee;
-        }
-        .series-item .series-icon { color: #ffb74d; }
-        .series-item .series-range {
-            font-weight: 600;
-            color: #e65100;
-        }
-        .series-item .series-qty {
-            background: #e0e0e0;
-            padding: 0 6px;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        .series-item .series-massa {
-            color: #666;
-        }
-        .series-item .series-dim {
-            color: #999;
-            font-size: 11px;
-        }
-        .series-item .series-status {
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .series-item .series-status.fits { color: #4caf50; }
-        .series-item .series-status.not-fits { color: #ef5350; }
-
-        .series-empty {
-            padding: 2px 12px 2px 20px;
-            font-size: 11px;
-            color: #999;
-            font-style: italic;
-            border-left: 3px solid #e0e0e0;
         }
 
         .empty-message {
@@ -374,32 +311,23 @@
         }
         .legend-color.green { background: #e8f5e9; border-color: #4caf50; }
         .legend-color.red { background: #ffebee; border-color: #ef5350; }
-        .legend-color.gray { background: #f5f5f5; border-color: #e0e0e0; }
-        .legend-color.yellow { background: #fff8e1; border-color: #ffb74d; }
-
-        /* ===== СКРОЛЛБАР ===== */
-        .tree-container::-webkit-scrollbar {
-            width: 6px;
-        }
-        .tree-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-        .tree-container::-webkit-scrollbar-thumb {
-            background: #c1c7cd;
-            border-radius: 3px;
-        }
+        .legend-color.gray { background: #fafafa; border-color: #e0e0e0; }
+        .legend-color.line { background: #fafafa; border-color: #bdbdbd; }
+        .legend-color.sb { background: #f3e5f5; border-color: #4a148c; }
+        .legend-color.det { background: #e8f5e9; border-color: #1b5e20; }
+        .legend-color.st { background: #fff3e0; border-color: #e65100; }
+        .legend-color.pok { background: #fce4ec; border-color: #880e4f; }
+        .legend-color.mat { background: #e0f7fa; border-color: #00695c; }
 
         @media (max-width: 768px) {
-            .node-item { flex-wrap: wrap; }
-            .node-item .meta { margin-left: 0; width: 100%; padding-left: 26px; }
-            .tree ul { padding-left: 15px; }
-            .series-container { padding-left: 20px; }
+            .tree table { font-size: 11px; }
+            .tree table th, .tree table td { padding: 3px 6px; }
             .stats { gap: 10px; font-size: 13px; flex-direction: column; }
             .container { padding: 15px; }
             .actions { flex-direction: column-reverse; }
             .actions .btn { width: 100%; text-align: center; }
-            .legend { flex-direction: column; gap: 5px; }
+            .type-badge { font-size: 8px; padding: 1px 6px; min-width: 28px; }
+            .level-indent { display: none; }
         }
     </style>
 </head>
@@ -407,51 +335,34 @@
 
 <div class="container">
     <h1>
-        📐 Предпросмотр сборок
+        📐 Предпросмотр структуры
         <span class="badge">Перед формированием КВ</span>
     </h1>
 
-    <!-- СТАТИСТИКА С ОТОБРАЖЕНИЕМ ИЗДЕЛИЯ -->
     <div class="stats" id="statsPanel">
-        <span><span class="label">🏛️ Корневая сборка:</span> <strong id="rootName">—</strong></span>
+        <span><span class="label">🏛️ Сборка:</span> <strong id="rootName">—</strong></span>
         <span><span class="label">🏷️ Изделие:</span> <strong class="product-number" id="productNumber">—</strong></span>
-        <span><span class="label">📁 Всего узлов:</span> <span class="count" id="totalNodes">0</span></span>
-        <span><span class="label">📊 Уровней:</span> <span id="maxLevel">0</span></span>
-        <span><span class="label">🔢 Серий:</span> <span id="totalSeries">0</span></span>
+        <span><span class="label">📁 Всего элементов:</span> <span class="count" id="totalNodes">0</span></span>
         <span><span class="label">✅ Подходит:</span> <span class="count" id="fitCount" style="color:#4caf50;">0</span></span>
         <span><span class="label">❌ Не подходит:</span> <span class="count" id="notFitCount" style="color:#ef5350;">0</span></span>
         <span id="statusText" style="color: #ffb74d;">⏳ Загрузка...</span>
     </div>
 
-    <!-- Легенда -->
     <div class="legend">
-        <span class="legend-item">
-            <span class="legend-color green"></span> Подходит по серии
-        </span>
-        <span class="legend-item">
-            <span class="legend-color red"></span> Не подходит по серии
-        </span>
-        <span class="legend-item">
-            <span class="legend-color gray"></span> Нет серий (действует на все)
-        </span>
-        <span class="legend-item">
-            <span class="legend-color yellow"></span> Серия (жёлтый — нейтральный)
-        </span>
-        <span class="legend-item">
-            <span class="legend-color green"></span> Серия подходит
-        </span>
-        <span class="legend-item">
-            <span class="legend-color red"></span> Серия не подходит
-        </span>
+        <span class="legend-item"><span class="legend-color green"></span> Подходит</span>
+        <span class="legend-item"><span class="legend-color red"></span> Не подходит</span>
+        <span class="legend-item"><span class="legend-color gray"></span> Нет проверки</span>
+        <span class="legend-item"><span class="legend-color line"></span> ─── Уровень вложенности</span>
+        <span class="legend-item"><span class="legend-color sb"></span> СБ — Сборка</span>
+        <span class="legend-item"><span class="legend-color det"></span> ДЕТ — Деталь</span>
+        <span class="legend-item"><span class="legend-color st"></span> СТ — Стандартное</span>
+        <span class="legend-item"><span class="legend-color pok"></span> ПОК — Покупное</span>
+        <span class="legend-item"><span class="legend-color mat"></span> МАТ — Материал</span>
     </div>
 
     <div class="controls">
         <button class="btn btn-primary" onclick="expandAll()">📖 Развернуть всё</button>
         <button class="btn btn-secondary" onclick="collapseAll()">📕 Свернуть всё</button>
-        <button class="btn btn-warning" onclick="expandLevel(1)">📂 Уровень 1</button>
-        <button class="btn btn-warning" onclick="expandLevel(2)">📂 Уровень 2</button>
-        <button class="btn btn-warning" onclick="expandLevel(3)">📂 Уровень 3</button>
-        <button class="btn btn-secondary" onclick="toggleAllSeries()">🔢 Показать/скрыть серии</button>
         <button class="btn btn-secondary" onclick="refreshPreview()">🔄 Обновить</button>
     </div>
 
@@ -459,7 +370,7 @@
 
     <div id="loading" class="loading">
         <div class="spinner"></div>
-        <div>⏳ Загрузка иерархии сборок...</div>
+        <div>⏳ Загрузка структуры...</div>
     </div>
 
     <div class="tree-container" id="treeContainer" style="display:none;">
@@ -491,11 +402,8 @@
 
     let treeData = null;
     let totalNodes = 0;
-    let maxLevel = 0;
-    let totalSeries = 0;
     let fitCount = 0;
     let notFitCount = 0;
-    let showSeries = true;
 
     // ========================================================================
     // ЗАГРУЗКА ДАННЫХ
@@ -510,7 +418,7 @@
 
         if (!specifId) {
             error.style.display = 'block';
-            error.textContent = '❌ Ошибка: не указан ID сборки (specifId)';
+            error.textContent = '❌ Ошибка: не указан ID сборки';
             loading.style.display = 'none';
             return;
         }
@@ -534,44 +442,36 @@
 
             if (treeData.length === 0) {
                 error.style.display = 'block';
-                error.textContent = '⚠️ Для этой сборки нет дочерних элементов структуры';
+                error.textContent = '⚠️ Нет данных для отображения';
                 loading.style.display = 'none';
                 status.textContent = '⚠️ Нет данных';
                 status.style.color = '#ffb74d';
                 return;
             }
 
-            // Подсчёт статистики
             calculateStats(treeData);
 
             const root = treeData[0];
-
-            // Отображаем корневую сборку
             rootName.textContent = (root.obozn || 'Без обозн.') + ' — ' + (root.naim || 'Без названия');
 
-            // Отображаем номер изделия
             const productNumberEl = document.getElementById('productNumber');
             if (root.izdelieNumber) {
                 productNumberEl.textContent = root.izdelieNumber;
-                productNumberEl.style.color = '#0d47a1';
             } else {
                 productNumberEl.textContent = 'Не указано';
-                productNumberEl.style.color = '#999';
             }
 
             document.getElementById('totalNodes').textContent = totalNodes;
-            document.getElementById('maxLevel').textContent = maxLevel;
-            document.getElementById('totalSeries').textContent = totalSeries;
             document.getElementById('fitCount').textContent = fitCount;
             document.getElementById('notFitCount').textContent = notFitCount;
 
             renderTree(treeData);
             loading.style.display = 'none';
             container.style.display = 'block';
-            status.textContent = '✅ Загружено (' + totalNodes + ' узлов, ' + fitCount + ' ✅ / ' + notFitCount + ' ❌)';
+            status.textContent = '✅ Загружено (' + totalNodes + ' элементов)';
             status.style.color = '#66bb6a';
 
-            setTimeout(() => expandLevel(2), 400);
+            setTimeout(() => expandAll(), 300);
 
         } catch (err) {
             loading.style.display = 'none';
@@ -579,7 +479,7 @@
             error.textContent = '❌ Ошибка: ' + err.message;
             status.textContent = '❌ Ошибка';
             status.style.color = '#ef5350';
-            console.error('Ошибка загрузки:', err);
+            console.error(err);
         }
     }
 
@@ -589,153 +489,150 @@
 
     function calculateStats(nodes) {
         totalNodes = 0;
-        maxLevel = 0;
-        totalSeries = 0;
         fitCount = 0;
         notFitCount = 0;
 
-        function calc(nodes, level) {
+        function calc(nodes) {
             for (const node of nodes) {
                 totalNodes++;
-                if (level > maxLevel) maxLevel = level;
-
-                if (node.series) {
-                    totalSeries += node.series.length;
-                }
-
-                if (node.fitsSeries === true) {
-                    fitCount++;
-                } else if (node.fitsSeries === false) {
-                    notFitCount++;
-                }
+                if (node.fitsSeries === true) fitCount++;
+                else if (node.fitsSeries === false) notFitCount++;
 
                 if (node.children && node.children.length > 0) {
-                    calc(node.children, level + 1);
+                    calc(node.children);
                 }
             }
         }
 
-        calc(nodes, 0);
+        calc(nodes);
     }
 
     // ========================================================================
-    // РЕНДЕРИНГ ДЕРЕВА
+    // РЕНДЕРИНГ ТАБЛИЧНО-ДРЕВОВИДНОЙ СТРУКТУРЫ
     // ========================================================================
 
     function renderTree(nodes) {
         const container = document.getElementById('treeContent');
         if (!nodes || nodes.length === 0) {
-            container.innerHTML = '<div class="empty-message">📄 Нет данных для отображения</div>';
+            container.innerHTML = '<div class="empty-message">📄 Нет данных</div>';
             return;
         }
-        container.innerHTML = buildTreeHTML(nodes, 0);
+
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th style="width:140px;">Обозначение</th>
+                        <th style="width:220px;">Наименование</th>
+                        <th style="width:60px;text-align:center;">Тип</th>
+                        <th style="width:50px;text-align:center;">Кол-во</th>
+                        <th style="width:75px;text-align:right;">Масса, кг</th>
+                        <th style="width:120px;">Материал</th>
+                        <th style="width:80px;">Статус</th>
+                        <th style="min-width:180px;">Серии</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${buildTreeRows(nodes, 0)}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = html;
     }
 
-    function buildTreeHTML(nodes, level) {
+    function buildTreeRows(nodes, level) {
         if (!nodes || nodes.length === 0) return '';
 
-        let html = '<ul>';
+        let html = '';
         for (const node of nodes) {
             const hasChildren = node.children && node.children.length > 0;
-            const hasSeries = node.series && node.series.length > 0;
-            const isRoot = level === 0;
+            const fits = node.fitsSeries;
+            const rowClass = fits === true ? 'row-fit-true' : (fits === false ? 'row-fit-false' : 'row-fit-null');
             const levelClass = 'level-' + level;
 
-            // Определяем статус
-            const fits = node.fitsSeries;
-            const fitClass = fits === true ? 'fit-true' : (fits === false ? 'fit-false' : '');
-
-            let statusBadge = '';
+            // Статус
+            let statusHtml = '';
             if (fits === true) {
-                statusBadge = '<span class="badge fit-badge fit-true">✅ Подходит</span>';
+                statusHtml = '<span class="status-badge fit-true">✅</span>';
             } else if (fits === false) {
-                statusBadge = '<span class="badge fit-badge fit-false">❌ Не подходит</span>';
-            }
-
-            html += '<li>';
-            html += '<div class="node-item ' + levelClass + ' ' + fitClass + '" data-level="' + level + '" data-node-id="' + node.id + '">';
-
-            html += '<span class="icon">' + (isRoot ? '🏛️' : '📦') + '</span>';
-
-            html += '<span class="badge ' + (isRoot ? 'root' : (hasSeries ? 'has-series' : 'child')) + '">' +
-                (isRoot ? 'ГЛАВНАЯ' : (hasSeries ? '📋 СЕРИЙНАЯ' : 'СБОРКА')) +
-                '</span>';
-
-            html += statusBadge;
-
-            html += '<span class="obozn">' + (node.obozn || 'Без обозн.') + '</span>';
-            if (node.naim) {
-                html += '<span class="naim">— ' + node.naim + '</span>';
-            }
-
-            if (node.izdelieNumber) {
-                html += '<span class="izd-info">🏷️ Изделие ' + node.izdelieNumber + '</span>';
-            }
-
-            if (node.fitReason) {
-                html += '<span class="fit-reason">' + node.fitReason + '</span>';
-            }
-
-            html += '<span class="meta">';
-            if (node.quantity !== null && node.quantity !== undefined) {
-                html += '<span class="qty">×' + node.quantity + '</span>';
-            }
-            if (node.massa !== null && node.massa !== undefined && node.massa > 0) {
-                html += '⚖️ ' + node.massa.toFixed(2) + ' кг';
-            }
-            html += '<span class="level-badge">Уровень ' + level + '</span>';
-            if (hasChildren) {
-                html += '👶 ' + node.children.length;
-            }
-            if (hasSeries) {
-                html += ' 🔢 ' + node.series.length;
-            }
-            html += '</span>';
-
-            html += '</div>'; // end node-item
-
-            // СЕРИИ
-            if (hasSeries) {
-                html += '<div class="series-container visible" id="series-' + node.id + '">';
-                const productNumber = node.izdelieNumber;
-                for (const series of node.series) {
-                    // Проверяем, подходит ли серия под изделие
-                    const fitsSeries = series.mini !== undefined && series.maxi !== undefined &&
-                        productNumber >= series.mini && productNumber <= series.maxi;
-
-                    const seriesClass = fitsSeries ? 'series-fits' : 'series-not-fits';
-                    const seriesStatus = fitsSeries ? '✅ ПОДХОДИТ' : '❌ НЕ ПОДХОДИТ';
-                    const seriesColor = fitsSeries ? 'fits' : 'not-fits';
-
-                    html += '<div class="series-item ' + seriesClass + '">';
-                    html += '<span class="series-icon">🔢</span>';
-                    html += '<span class="series-range">' + (series.mini || '?') + '–' + (series.maxi || '?') + '</span>';
-                    html += '<span class="series-status ' + seriesColor + '">' + seriesStatus + '</span>';
-                    if (series.quantity) {
-                        html += '<span class="series-qty">×' + series.quantity + '</span>';
-                    }
-                    if (series.massa) {
-                        html += '<span class="series-massa">⚖️ ' + series.massa.toFixed(2) + ' кг</span>';
-                    }
-                    if (series.dimensions) {
-                        html += '<span class="series-dim">📐 ' + series.dimensions + '</span>';
-                    }
-                    html += '</div>';
-                }
-                html += '</div>';
+                statusHtml = '<span class="status-badge fit-false">❌</span>';
             } else {
-                html += '<div class="series-container" id="series-' + node.id + '">';
-                html += '<div class="series-empty">📄 Нет серий (действует на все изделия)</div>';
-                html += '</div>';
+                statusHtml = '<span class="status-badge fit-null">—</span>';
             }
 
+            // Тип (сокращённый: СБ, ДЕТ, СТ, ПОК, МАТ)
+            const typeIcon = node.typeIcon || '📄';
+            const typeName = node.typeName || '—';
+            const divClass = 'type-badge division-' + (node.idDivision || 0);
+
+            // Стрелка
+            let toggleHtml = '';
             if (hasChildren) {
-                html += buildTreeHTML(node.children, level + 1);
+                toggleHtml = `<span class="toggle-btn expanded" onclick="event.stopPropagation(); toggleNode(this)">▶</span>`;
+            } else {
+                toggleHtml = `<span class="toggle-btn leaf">•</span>`;
             }
 
-            html += '</li>';
+            // Визуальные линии для вложенности
+            let indentHtml = '';
+            for (let i = 0; i < level; i++) {
+                indentHtml += `<span class="level-indent"></span>`;
+                if (i === level - 1) {
+                    indentHtml += `<span class="tree-line"></span>`;
+                }
+            }
+
+            // Серии
+            let seriesHtml = '';
+            if (node.series && node.series.length > 0) {
+                const productNumber = node.izdelieNumber;
+                for (const s of node.series) {
+                    const fitsSeries = s.mini !== undefined && s.maxi !== undefined &&
+                        productNumber >= s.mini && productNumber <= s.maxi;
+                    const seriesClass = fitsSeries ? 'series-fits' : 'series-not-fits';
+                    seriesHtml += `<span class="series-item ${seriesClass}">${s.mini || '?'}–${s.maxi || '?'}`;
+                    if (s.quantity) seriesHtml += ` ×${s.quantity}`;
+                    if (s.massa) seriesHtml += ` ⚖️${s.massa.toFixed(2)}`;
+                    seriesHtml += `</span>`;
+                }
+            } else {
+                seriesHtml = '<span style="color:#999;font-size:11px;">нет серий</span>';
+            }
+
+            // Причина несоответствия (тултип)
+            let titleAttr = '';
+            if (node.fitReason) {
+                titleAttr = ` title="${node.fitReason}"`;
+            }
+
+            html += `
+                <tr class="${rowClass} ${levelClass}"${titleAttr}>
+                    <td>
+                        <div class="tree-cell">
+                            ${indentHtml}
+                            ${toggleHtml}
+                        </div>
+                    </td>
+                    <td><span class="type-icon">${typeIcon}</span> ${node.obozn || '—'}</td>
+                    <td>${node.naim || '—'}</td>
+                    <td style="text-align:center;"><span class="${divClass}">${typeName}</span></td>
+                    <td style="text-align:center;">${node.quantity || 1}</td>
+                    <td style="text-align:right;">${node.massa ? node.massa.toFixed(2) : '—'}</td>
+                    <td>${node.material || '—'}</td>
+                    <td>${statusHtml}</td>
+                    <td class="series-cell">${seriesHtml}</td>
+                </tr>
+            `;
+
+            // Рекурсивно рендерим детей
+            if (hasChildren) {
+                const childRows = buildTreeRows(node.children, level + 1);
+                html += childRows;
+            }
         }
-        html += '</ul>';
+
         return html;
     }
 
@@ -743,44 +640,72 @@
     // УПРАВЛЕНИЕ ДЕРЕВОМ
     // ========================================================================
 
+    function toggleNode(btn) {
+        const tr = btn.closest('tr');
+        if (!tr) return;
+
+        const isExpanded = btn.classList.contains('expanded');
+        const level = getLevel(tr);
+
+        let next = tr.nextElementSibling;
+        const children = [];
+        while (next) {
+            const nextLevel = getLevel(next);
+            if (nextLevel <= level) break;
+            children.push(next);
+            next = next.nextElementSibling;
+        }
+
+        if (isExpanded) {
+            btn.classList.remove('expanded');
+            children.forEach(row => row.style.display = 'none');
+        } else {
+            btn.classList.add('expanded');
+            children.forEach(row => row.style.display = '');
+        }
+    }
+
+    function getLevel(tr) {
+        const classes = tr.className.split(' ');
+        for (const cls of classes) {
+            if (cls.startsWith('level-')) {
+                return parseInt(cls.replace('level-', ''));
+            }
+        }
+        return 0;
+    }
+
     function expandAll() {
-        document.querySelectorAll('.tree ul').forEach(el => {
-            el.style.display = 'block';
+        // Сначала снимаем все expanded
+        document.querySelectorAll('.toggle-btn.expanded').forEach(btn => {
+            btn.classList.remove('expanded');
+        });
+        // Потом разворачиваем все
+        document.querySelectorAll('.toggle-btn:not(.leaf)').forEach(btn => {
+            btn.classList.add('expanded');
+            const tr = btn.closest('tr');
+            let next = tr.nextElementSibling;
+            const level = getLevel(tr);
+            while (next) {
+                const nextLevel = getLevel(next);
+                if (nextLevel <= level) break;
+                next.style.display = '';
+                next = next.nextElementSibling;
+            }
         });
     }
 
     function collapseAll() {
-        document.querySelectorAll('.tree ul').forEach((el, index) => {
-            if (index > 0) {
-                el.style.display = 'none';
-            }
-        });
-    }
-
-    function expandLevel(maxLevel) {
-        document.querySelectorAll('.tree ul').forEach(el => {
-            const parentLi = el.closest('li');
-            if (parentLi) {
-                const levelDiv = parentLi.querySelector('.node-item');
-                if (levelDiv) {
-                    const level = parseInt(levelDiv.dataset.level) || 0;
-                    if (level < maxLevel) {
-                        el.style.display = 'block';
-                    } else {
-                        el.style.display = 'none';
-                    }
-                }
-            }
-        });
-    }
-
-    function toggleAllSeries() {
-        showSeries = !showSeries;
-        document.querySelectorAll('.series-container').forEach(el => {
-            if (showSeries) {
-                el.classList.add('visible');
-            } else {
-                el.classList.remove('visible');
+        document.querySelectorAll('.toggle-btn:not(.leaf)').forEach(btn => {
+            btn.classList.remove('expanded');
+            const tr = btn.closest('tr');
+            let next = tr.nextElementSibling;
+            const level = getLevel(tr);
+            while (next) {
+                const nextLevel = getLevel(next);
+                if (nextLevel <= level) break;
+                next.style.display = 'none';
+                next = next.nextElementSibling;
             }
         });
     }
@@ -822,12 +747,9 @@
                 info += '🏷️ Изделие: ' + root.izdelieNumber + '\n';
             }
         }
-        info += '📁 Всего узлов: ' + totalNodes + '\n';
-        info += '📊 Уровней вложенности: ' + maxLevel + '\n';
-        info += '🔢 Серий: ' + totalSeries + '\n';
+        info += '📁 Всего элементов: ' + totalNodes + '\n';
         info += '✅ Подходит: ' + fitCount + '\n';
-        info += '❌ Не подходит: ' + notFitCount + '\n\n';
-        info += '⚠️ Неподходящие сборки будут исключены из КВ!\n\n';
+        info += '❌ Не подходит (будут исключены): ' + notFitCount + '\n\n';
         info += 'Продолжить?';
 
         if (!confirm(info)) return;

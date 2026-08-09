@@ -1,4 +1,3 @@
-// src/main/java/com/example/constructorKV/kv/service/KomplektovkaService.java
 package com.example.constructorKV.kv.service;
 
 import com.example.constructorKV.common.exception.BusinessException;
@@ -11,7 +10,10 @@ import com.example.constructorKV.kv.entity.StructureKomplektovkiEntity;
 import com.example.constructorKV.kv.repository.KomplektovkaRepository;
 import com.example.constructorKV.kv.repository.ProductSeriesKomplektovkiRepository;
 import com.example.constructorKV.kv.repository.StructureKomplektovkiRepository;
+import com.example.constructorKV.slzap.dto.AssemblyForKVDto;
 import com.example.constructorKV.slzap.service.SlZapiskaService;
+import com.example.constructorKV.specif.entity.Specif22Entity;
+import com.example.constructorKV.specif.repository.SpecifRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,13 +33,11 @@ public class KomplektovkaService {
     private final StructureKomplektovkiRepository structureKomplektovkiRepository;
     private final ProductSeriesKomplektovkiRepository productSeriesKomplektovkiRepository;
     private final SlZapiskaService slZapiskaService;
+    private final SpecifRepository specifRepository;
+    private final KvStatusService kvStatusService;
 
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-
-    // ========================================================================
-    // ПОЛУЧЕНИЕ КВ ПО СЛУЖЕБНОЙ ЗАПИСКЕ
-    // ========================================================================
 
     public List<KomplektovkaDto> getKvBySlZapiskaId(Integer slZapiskaId) {
         log.info("🔍 Получение КВ для служебной записки {}", slZapiskaId);
@@ -62,10 +62,6 @@ public class KomplektovkaService {
         return result;
     }
 
-    // ========================================================================
-    // ФОРМИРОВАНИЕ НОВОЙ КВ
-    // ========================================================================
-
     @Transactional
     public KomplektovkaDto formKV(KVFormRequestDto request) {
         Integer slZapiskaId = request.getSlZapiskaId();
@@ -80,8 +76,7 @@ public class KomplektovkaService {
         }
 
         // ===== ПРОВЕРКА 2: Сборка должна принадлежать СЗ =====
-        List<com.example.constructorKV.slzap.dto.AssemblyForKVDto> assemblies =
-                slZapiskaService.getAssembliesForSlZap(slZapiskaId);
+        List<AssemblyForKVDto> assemblies = slZapiskaService.getAssembliesForSlZap(slZapiskaId);
         boolean valid = assemblies.stream().anyMatch(a -> a.getSpecifId().equals(specifId));
         if (!valid) {
             log.warn("⚠️ Сборка {} не найдена в СЗ {}", specifId, slZapiskaId);
@@ -95,58 +90,68 @@ public class KomplektovkaService {
             throw new BusinessException("❌ На эту сборку уже есть КВ! Повторное формирование невозможно.");
         }
 
-        // ===== ШАГ 4: Создаём запись в KOMPLECTOVKA =====
-        KomplektovkaEntity kv = new KomplektovkaEntity();
-        kv.setIdSz(slZapiskaId);
-        kv.setDesign("KV-" + slZapiskaId + "-" + System.currentTimeMillis());
-        kv.setSborkiSz(String.valueOf(specifId));
-        kv.setDateCreate(LocalDateTime.now());
-        kv.setStatus((short) 0);  // 0 - активна
-
-        kv = komplektovkaRepository.save(kv);
-        log.info("✅ КВ создана с ID: {}", kv.getId());
-
-        // ===== ШАГ 5: Получение иерархии сборок =====
-        log.info("📊 Получение иерархии сборок для спецификации {}", specifId);
-        List<AssemblyHierarchyDto> hierarchy = slZapiskaService.getAssemblyHierarchy(specifId);
-
-        if (hierarchy != null && !hierarchy.isEmpty()) {
-            // ===== ШАГ 6: Сохраняем структуру КВ (только подходящие узлы) =====
-            log.info("💾 Сохранение структуры КВ для KV ID: {}", kv.getId());
-            int savedCount = saveStructure(kv.getId(), hierarchy, specifId);
-            log.info("✅ Сохранено {} элементов структуры для КВ {}", savedCount, kv.getId());
-        } else {
-            log.warn("⚠️ Для спецификации {} нет структуры", specifId);
+        // ================================================================
+        // ШАГ 4: Получить обозначение сборки
+        // ================================================================
+        String specifObozn = "";
+        try {
+            Specif22Entity specif = specifRepository.findById(specifId).orElse(null);
+            if (specif != null && specif.getObozn() != null) {
+                specifObozn = specif.getObozn();
+            }
+        } catch (Exception e) {
+            log.warn("⚠️ Не удалось получить обозначение сборки: {}", e.getMessage());
         }
 
-        log.info("✅ КВ успешно сформирована. ID: {}", kv.getId());
+        // ================================================================
+        // ШАГ 5: Создаём запись в KOMPLECTOVKA
+        // ================================================================
+        KomplektovkaEntity kv = new KomplektovkaEntity();
+        kv.setIdSz(slZapiskaId);
+
+        if (specifObozn != null && !specifObozn.isEmpty()) {
+            kv.setDesign("КВ-" + specifObozn);
+        } else {
+            kv.setDesign("КВ-СБ-" + specifId);
+        }
+
+        kv.setSborkiSz(String.valueOf(specifId));
+        kv.setDateCreate(LocalDateTime.now());
+        kv.setStatus((short) 0);
+
+        // Статус КВ: 1 = "В работе"
+        kv.setKvStatusId(1);
+
+        // Декомпозиция
+        if (request.getParentKvId() != null) {
+            kv.setParentKvId(request.getParentKvId());
+        }
+
+        kv = komplektovkaRepository.save(kv);
+        log.info("✅ КВ создана с ID: {}, DESIGN: {}, STATUS_ID: {}",
+                kv.getId(), kv.getDesign(), kv.getKvStatusId());
+
+        // ================================================================
+        // ШАГ 6: Сохраняем структуру
+        // ================================================================
+        List<AssemblyHierarchyDto> hierarchy = slZapiskaService.getAssemblyHierarchy(specifId);
+        if (hierarchy != null && !hierarchy.isEmpty()) {
+            int savedCount = saveStructure(kv.getId(), hierarchy, specifId);
+            log.info("✅ Сохранено {} элементов структуры для КВ {}", savedCount, kv.getId());
+        }
+
         return convertToDto(kv);
     }
 
-    // ========================================================================
-    // СОХРАНЕНИЕ СТРУКТУРЫ КВ
-    // ========================================================================
-
-    /**
-     * СОХРАНИТЬ СТРУКТУРУ КВ В БД
-     * Сохраняются только узлы, прошедшие проверку по сериям (fitsSeries = true)
-     *
-     * @param kvId ID КВ
-     * @param hierarchy иерархия сборок
-     * @param rootSpecifId ID корневой спецификации
-     * @return количество сохранённых узлов
-     */
     @Transactional
     public int saveStructure(Integer kvId, List<AssemblyHierarchyDto> hierarchy, Integer rootSpecifId) {
         log.info("💾 Сохранение структуры для КВ {}, корень: {}", kvId, rootSpecifId);
 
-        // Очищаем старую структуру (если была)
         structureKomplektovkiRepository.deleteByKomplektovkaId(kvId);
         productSeriesKomplektovkiRepository.deleteByKomplektovkaId(kvId);
 
         int savedCount = 0;
 
-        // Сохраняем только подходящие узлы
         for (AssemblyHierarchyDto node : hierarchy) {
             savedCount += saveNodeRecursive(kvId, node, null, rootSpecifId);
         }
@@ -155,28 +160,20 @@ public class KomplektovkaService {
         return savedCount;
     }
 
-    /**
-     * РЕКУРСИВНОЕ СОХРАНЕНИЕ УЗЛА И ЕГО ДЕТЕЙ
-     * Сохраняются только узлы, прошедшие проверку по сериям (fitsSeries = true)
-     *
-     * @param kvId ID КВ
-     * @param node текущий узел
-     * @param parentId ID родителя в STRUCTURA_KOMPLECTOVKI
-     * @param rootSpecifId ID корневой спецификации
-     * @return количество сохранённых узлов (включая потомков)
-     */
     private int saveNodeRecursive(Integer kvId, AssemblyHierarchyDto node, Integer parentId, Integer rootSpecifId) {
         int count = 0;
 
-        // Пропускаем узлы, которые не прошли проверку по сериям
-        // fitsSeries = false — не сохраняем
-        // fitsSeries = null или true — сохраняем
+        // ============================================================
+        // СОХРАНЯЕМ ТОЛЬКО ТЕ УЗЛЫ, КОТОРЫЕ ПОДХОДЯТ ПО СЕРИЯМ
+        // ============================================================
         if (node.getFitsSeries() != null && !node.getFitsSeries()) {
             log.debug("⏭️ Пропущен узел {} (не подходит по сериям)", node.getObozn());
             return 0;
         }
 
-        // Создаём запись в STRUCTURA_KOMPLECTOVKI
+        // ============================================================
+        // СОЗДАЕМ ЗАПИСЬ В STRUCTURA_KOMPLECTOVKI
+        // ============================================================
         StructureKomplektovkiEntity entity = new StructureKomplektovkiEntity();
         entity.setIdKomplektovka(kvId);
         entity.setIdSpecif(node.getId());
@@ -184,18 +181,20 @@ public class KomplektovkaService {
         entity.setName(node.getNaim());
         entity.setQuantity(node.getQuantity() != null ? node.getQuantity() : 1);
         entity.setMassa(node.getMassa() != null ? node.getMassa() : 0.0);
-        entity.setIdDivision(3);  // ID_DIVISION = 3 (сборки)
+        entity.setIdDivision(node.getIdDivision() != null ? node.getIdDivision() : 3);
         entity.setParent(parentId);
         entity.setLevel(node.getLevel() != null ? node.getLevel() : 0);
         entity.setIdRootSpecif(rootSpecifId);
         entity.setIdOriginalStructure(node.getStructureId() != null ? node.getStructureId() : 0);
 
-        // Сохраняем и получаем ID
         entity = structureKomplektovkiRepository.save(entity);
-        log.debug("✅ Сохранён узел: {} (ID: {}, уровень: {})", node.getObozn(), entity.getId(), entity.getLevel());
+        log.debug("✅ Сохранён узел: {} (ID: {}, уровень: {}, тип: {})",
+                node.getObozn(), entity.getId(), entity.getLevel(), node.getTypeName());
         count++;
 
-        // Сохраняем серии для этого узла
+        // ============================================================
+        // СОХРАНЯЕМ СЕРИИ (ЕСЛИ ЕСТЬ)
+        // ============================================================
         if (node.getSeries() != null && !node.getSeries().isEmpty()) {
             for (AssemblyHierarchyDto.SeriesInfo seriesInfo : node.getSeries()) {
                 ProductSeriesKomplektovkiEntity series = new ProductSeriesKomplektovkiEntity();
@@ -210,7 +209,9 @@ public class KomplektovkaService {
             }
         }
 
-        // Рекурсивно сохраняем детей (только если они подходят)
+        // ============================================================
+        // РЕКУРСИВНО СОХРАНЯЕМ ДЕТЕЙ (ТОЛЬКО ПОДХОДЯЩИЕ)
+        // ============================================================
         if (node.getChildren() != null && !node.getChildren().isEmpty()) {
             for (AssemblyHierarchyDto child : node.getChildren()) {
                 count += saveNodeRecursive(kvId, child, entity.getId(), rootSpecifId);
@@ -219,10 +220,6 @@ public class KomplektovkaService {
 
         return count;
     }
-
-    // ========================================================================
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-    // ========================================================================
 
     private KomplektovkaDto convertToDto(KomplektovkaEntity entity) {
         String dateStr = entity.getDateCreate() != null
@@ -238,6 +235,7 @@ public class KomplektovkaService {
                 .sborkiSz(entity.getSborkiSz())
                 .dateCreate(dateStr)
                 .status(status)
+                .kvStatusId(entity.getKvStatusId())
                 .build();
     }
 
